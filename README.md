@@ -1,83 +1,74 @@
 # OpenTune
 
-**OpenTune** is a modern, cross-platform digital audio workstation (DAW) built with [TypeScript](https://www.typescriptlang.org/), [React](https://react.dev/), [Electron](https://www.electronjs.org/), and [Bun](https://bun.sh/).
-Inspired by the elegance of Apple's Logic Pro and GarageBand, OpenTune features a beautiful macOS-style interface powered by [@codedgar/Puppertino](https://github.com/codedgar/Puppertino).
+**OpenTune** is a modern, open-source digital audio workstation (DAW) designed for Linux, with a focus on the GNOME desktop environment.  
+Inspired by the workflows and aesthetics of Ableton Live and Logic Pro X, OpenTune provides a powerful, intuitive, and visually appealing audio production experience natively on Linux.
 
 ---
 
 ## ✨ Features
 
-- 🎹 **Apple-inspired UI/UX** – Modern, clean, and intuitive, powered by [@codedgar/Puppertino](https://github.com/codedgar/Puppertino)
-- 🎛️ **Multi-track Audio & MIDI Editing**
-- 🧩 **Plugin Support** – WebAudio, WASM, and (planned) native VST/CLAP plugins via modern native bridges
-- 🖥️ **Native Features** – Deep OS integration for audio, MIDI, file system, and more, using Electron and Bun-compatible native packages
-- 🎼 **Piano Roll, Step Sequencer, Mixer, Automation**
-- 🔄 **Cross-platform**: macOS, Windows, Linux
-- 🏃‍♂️ **Fast, Extensible**: Bun runtime, hot reload, modular codebase, robust plugin API
-- ☁️ **Project Save/Load, Export, and More**
+- 🎚️ **Professional UI**: Arrangement and session views inspired by Ableton Live and Logic Pro X, using GTK4 and Libadwaita for seamless GNOME integration
+- 🎛️ **Multi-track Audio and MIDI Editing**
+- 🧩 **Native Plugin Support**: VST, CLAP, LV2, and more via high-performance Rust crates
+- 🎹 **Piano Roll, Step Sequencer, Mixer, Automation**
+- 🔗 **Deep System Integration**: Native file dialogs, drag-and-drop, and theming on GNOME
+- 🏃‍♂️ **Efficient and Safe**: Built in Rust for reliability and performance
 
 ---
 
 ## 🚀 Getting Started
 
-1. **Clone the repo:**
-    ```sh
-    git clone https://github.com/Georgecane/opentune.git
-    cd opentune
-    ```
+### **Prerequisites**
 
-2. **Install dependencies (with Bun):**
-    ```sh
-    bun install
-    ```
+- [Rust](https://www.rust-lang.org/tools/install) (latest stable)
+- [GNOME Builder](https://apps.gnome.org/app/org.gnome.Builder/) or your favorite Rust IDE
+- GTK4 and Libadwaita development libraries (install via your distro's package manager)
+- (Optional) Plugin SDKs: VST, CLAP, LV2 headers for development
 
-3. **Start in development mode:**
-    ```sh
-    bun run dev
-    ```
+### **Build Instructions**
 
-4. **Build for production:**
-    ```sh
-    bun run build
-    # To package the desktop app:
-    bun run dist
-    ```
+```sh
+git clone https://github.com/Georgecane/opentune.git
+cd opentune
+cargo build --release
+```
 
----
+### **Run OpenTune**
 
-## 🖥️ Screenshots
-
-> ![Screenshot](docs/screenshot2.png)
-> _A Mac-inspired interface with multi-track editing and plugin support_
-
----
-
-## 🧩 Plugins
-
-- OpenTune supports **WebAudio plugins** and will support native VST/CLAP plugins via modern native bridges.
-- Want to build a plugin? See [docs/plugin-dev.md](docs/plugin-dev.md)
+```sh
+cargo run
+```
 
 ---
 
 ## 🛠️ Tech Stack
 
-- [TypeScript](https://www.typescriptlang.org/)
-- [React](https://react.dev/)
-- [@codedgar/Puppertino](https://github.com/codedgar/Puppertino)
-- [Electron](https://www.electronjs.org/)
-- [Bun](https://bun.sh/)
-- [Web Audio API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API)
-- [Web MIDI API](https://developer.mozilla.org/en-US/docs/Web/API/Web_MIDI_API)
-- [Node/Bun Native Packages](https://bun.sh/docs/ecosystem/native)
-- [Sass](https://sass-lang.com/) / [styled-components](https://styled-components.com/)
-- [Prettier](https://prettier.io/) + [ESLint](https://eslint.org/)
+- **Language:** [Rust](https://www.rust-lang.org/)
+- **UI:** [GTK4](https://www.gtk.org/) + [Libadwaita](https://gnome.pages.gitlab.gnome.org/libadwaita/)
+- **Audio Engine:** Native Rust DSP, [nih-plug](https://github.com/robbert-vdh/nih-plug), [clap](https://github.com/free-audio/clap), [vst-rs](https://github.com/RustAudio/vst-rs), [lv2](https://github.com/RustAudio/rust-lv2)
+- **MIDI:** [midir](https://github.com/Boddlnagg/midir)
+- **Plugin Support:** VST2/3, CLAP, LV2 (and more planned)
+- **Build System:** Cargo
+
+---
+
+## 🧩 Plugin Development
+
+- Write plugins in Rust or C/C++ using supported SDKs (VST, CLAP, LV2)
+- See [docs/plugin-dev.md](docs/plugin-dev.md) for details
+
+---
+
+## 🖥️ Screenshots
+
+> _Coming soon: Screenshots of OpenTune’s GNOME-native UI!_
 
 ---
 
 ## 🤝 Contributing
 
-- PRs and feedback are welcome!
-- See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
+- Contributions, issues, and feature requests are welcome!
+- See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines
 
 ---
 
@@ -87,4 +78,4 @@ Apache 2.0
 
 ---
 
-**OpenTune** is built by [@Georgecane](https://github.com/Georgecane) and contributors.
+OpenTune is built by [@Georgecane](https://github.com/Georgecane) and contributors.
