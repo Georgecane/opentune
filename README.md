@@ -1,36 +1,88 @@
 # 🎵 OpenTune
 
 ![License](https://img.shields.io/badge/license-GPLv3-blue.svg)
-![Engine](https://img.shields.io/badge/audio%20engine-Zig-orange.svg)
-![UI](https://img.shields.io/badge/UI-Avalonia%20%2B%20.NET-purple.svg)
+![Engine](https://img.shields.io/badge/audio%20engine-C%2B%2B20-orange.svg)
 ![Status](https://img.shields.io/badge/status-pre--alpha-red.svg)
 
-**OpenTune** is a free, open-source, cross-platform Digital Audio Workstation designed to grow into a professional music production environment.
+**OpenTune** is a free, open‑source, cross‑platform Digital Audio Workstation (DAW) built around a **C++20 audio engine** with a **stable C ABI**. The project targets Windows, macOS and Linux and is designed to be extensible, performant, and fully open‑source.
 
-OpenTune combines a high-performance native audio engine written in **Zig** with a modern desktop interface built using **C#/.NET and Avalonia UI**.
+---
 
-The project is built around one central idea:
+## 📦 Programming Stack
 
-> **A small and reliable core, an unlimited studio.**
+| Component | Language / Technology | Role |
+|-----------|----------------------|------|
+| Audio Engine | **C++20** | Real‑time, low‑latency audio processing. |
+| Build System | **CMake 3.20+** | Compiles the native engine library. |
+| C ABI Layer | **C-compatible header** (`opentune_engine.h`) | Stable interface for future UI bindings (C#, Rust, Python, etc.). |
+
+The engine exposes a stable C ABI (`engine/include/opentune_engine.h`), allowing future UI front‑ends (Avalonia/.NET, Qt, web, etc.) to invoke engine functions safely without compromising real‑time performance.
+
+---
+
+## 🛠️ Build & Run
+
+### Prerequisites
+
+* **CMake 3.20+** – for the engine build.
+* **C++20 compatible compiler** (MSVC 19.30+, GCC 11+, Clang 13+).
+* **Git** – to clone the repository.
+
+### Steps
+
+```bash
+# Clone the repository
+git clone https://github.com/yourorg/opentune.git
+cd opentune
+
+# Build the native engine
+mkdir -p build && cd build
+cmake .. -DCMAKE_BUILD_TYPE=Release
+cmake --build . --config Release
+```
+
+The built shared library (`opentune_engine.dll` / `libopentune_engine.so` / `libopentune_engine.dylib`) will be in `build/bin/`.
+
+### Running Tests
+
+```bash
+# From build directory
+ctest --output-on-failure
+```
 
 ---
 
 ## ⚠️ Project Status
 
-OpenTune is currently in the early development stage.
-
-The audio engine, project format, UI architecture and public APIs are subject to change. The project is not yet intended for production use.
-
-The current priority is to build a stable foundation for:
-
-- Real-time audio processing
-- Low-latency recording and playback
-- A modular audio graph
-- Cross-platform hardware support
-- A responsive and scalable user interface
-- A long-term open plugin and content ecosystem
+OpenTune is currently **pre‑alpha**. The core audio engine is implemented in C++20 with a stable C ABI. The UI layer has not been implemented yet — the project is focused on building a solid, testable audio engine foundation first. Contributions are welcome, but the software is not yet suitable for production use.
 
 ---
+
+## 📚 Documentation
+
+* **Engine API** – generated header `engine/include/opentune_engine.h`.
+* **Contribution Guide** – see `CONTRIBUTING.md` (to be added).
+
+---
+
+## 🤝 Contributing
+
+We follow a **transparent, open** development model:
+
+* Fork the repository and submit pull requests.
+* Keep changes focused on a single concern (engine, UI, or tooling).
+* Ensure tests pass (`ctest` from the build directory).
+* Adhere to the coding standards outlined in `CODE_OF_CONDUCT.md`.
+
+---
+
+## 📜 License
+
+OpenTune is licensed under the **GPLv3**. See `LICENSE` for the full text.
+
+The project is built around one central idea:
+
+> **A small and reliable core, an unlimited studio.**
 
 ## ✨ What Is OpenTune?
 
@@ -109,167 +161,94 @@ OpenTune should not require:
 
 ---
 
-## 🚀 Why Zig?
+## 🚀 Why C++20?
 
-The OpenTune audio engine is written in **Zig**.
+The OpenTune audio engine is written in **C++20**.
 
-Zig is well-suited for the engine because it provides:
+C++20 is well-suited for the engine because it provides:
 
 - Native performance
-- Explicit memory allocation
-- No garbage collector in the audio engine
+- Explicit memory management
+- No garbage collector
 - Predictable control over data structures
-- Clear error handling
-- Excellent C interoperability
-- Cross-compilation support
-- A simple and transparent build system
+- RAII for resource management
+- Excellent C interoperability (direct C ABI export)
+- Cross-platform toolchain support (MSVC, GCC, Clang)
+- Mature ecosystem of audio libraries
+- Zero-cost abstractions where needed
 
-Zig also allows OpenTune to integrate with existing native audio libraries, operating-system APIs and plugin standards without requiring the entire project to be written in C or C++.
-
-### Important Design Note
-
-Zig gives developers control and useful compile-time checks, but it is not a fully memory-safe language.
-
-OpenTune will therefore use strict engineering practices:
-
-- Small unsafe sections
-- Clear ownership rules
-- Extensive testing
-- Sanitizers in development
-- Fuzz testing for parsers
-- Offline audio rendering tests
-- Real-time allocation checks
-- Code review for engine changes
-
-Performance is important, but correctness and reliability come first.
+C++20 features like concepts, `std::span`, `std::bit_cast`, and `constexpr` improvements allow writing safer, more expressive code without runtime overhead. The engine is compiled with exceptions and RTTI disabled on audio-critical paths to ensure predictable real-time behavior.
 
 ---
 
-## 🖥️ Why Avalonia and .NET?
+## 🖥️ C ABI as the Stable Interface
 
-The OpenTune user interface is built with **Avalonia UI and C#/.NET**.
+The OpenTune engine exposes a **stable C ABI** (`opentune_engine.h`) as its public interface.
 
-Avalonia provides:
+Using a C ABI provides:
 
-- Cross-platform desktop UI
-- Windows, macOS and Linux support
-- Modern data binding
-- Flexible layout and styling
-- Native desktop windowing
-- Accessibility support
-- A productive development workflow
-- A mature .NET ecosystem
+- Language-agnostic bindings — any language with C FFI (C#, Rust, Python, Zig, Go, etc.) can call the engine
+- ABI stability across compiler versions
+- No C++ name mangling or RTTI dependencies
+- Clear API boundaries enforced by the header
+- Opaque handles that hide implementation details
+- Natural versioning via the API surface
 
-Using .NET for the UI allows the project to move quickly when implementing:
+No UI frontend has been built yet — the current focus is on the engine core. The C ABI ensures that when a UI layer is added, it can be implemented in any language without engine changes.
 
-- Project management
-- Settings
-- Menus and commands
-- Keyboard shortcuts
-- Localization
-- Accessibility
-- Plugin browsers
-- Content management
-- User preferences
-- Background file operations
+### Engine ↔ UI Boundary
 
-Avalonia is responsible for the application interface. It is not responsible for real-time audio processing.
+The **C++ audio engine** and any future UI will communicate via the **stable C ABI**:
 
-### UI and Engine Boundary
-
-The Zig engine and the .NET application communicate through a small, explicit C-compatible ABI.
-
-```text
-Zig Audio Engine
-       │
-       │  Stable C ABI
-       │
-C# Interop Layer
-       │
-       │  Commands and state snapshots
-       │
-Avalonia User Interface
+```
+C++ Audio Engine
+    │  Stable C ABI (opentune_engine.h)
+    ▼
+C FFI Bindings (any language)
+    │  Commands & state snapshots
+    ▼
+Future UI (Avalonia / Qt / egui / etc.)
 ```
 
-The boundary will use:
+Key boundary traits:
 
-- Opaque engine handles
-- Fixed-layout C-compatible structs
-- Numeric identifiers
-- Explicit buffer ownership
-- Versioned API functions
-- Bounded command queues
-- Read-only state snapshots
+* Opaque engine handles
+* Fixed‑layout C‑compatible structs
+* Numeric identifiers
+* Explicit buffer ownership
+* Versioned API functions
+* Bounded command queues
+* Read‑only state snapshots
 
-The audio thread will never call into the .NET runtime or Avalonia UI.
+The audio thread will never call into any UI runtime or allocate memory during real-time processing.
 
 ---
 
-## 🏗️ Architecture
+## 🏗️ Architecture Overview
 
-OpenTune is divided into several major subsystems.
+OpenTune’s design is split into two current layers, with room for future expansion:
 
-### Zig Audio Engine
+```
+┌───────────────────────────┐
+│   C ABI (opentune_engine.h) │  ←  Stable Public Interface
+└─────────────▲─────────────┘
+              │   Internal Calls
+┌─────────────▼─────────────┐
+│   C++ Audio Engine        │  ←  Real‑time DSP
+└───────────────────────────┘
+```
 
-Responsible for:
+### 1. C++ Audio Engine
+* C++20 code compiled as a shared library.
+* Handles device I/O, audio graph execution, DSP, mixing, routing, MIDI, project management, and plugin processing.
+* No heap allocations, locks, or OS calls on the audio thread.
 
-- Audio device input and output
-- Real-time processing
-- Audio graph execution
-- Track and bus processing
-- Mixing
-- Routing
-- DSP
-- Transport timing
-- Recording
-- Offline rendering
-- Latency management
-- Plugin processing
+### 2. C ABI Layer
+* Exposes a **stable, versioned C ABI** (`opentune_engine.h`).
+* Provides opaque handles, fixed‑layout structs, and command queues.
+* Guarantees backward compatibility across engine revisions.
 
-### C ABI Layer
-
-Responsible for:
-
-- Exposing stable engine functions
-- Managing opaque handles
-- Defining compatible data structures
-- Providing versioned interop functions
-- Isolating Zig implementation details from C#
-
-The shared ABI header will be maintained as a first-class part of the project.
-
-### C# Application Layer
-
-Responsible for:
-
-- Application state
-- Commands and undo/redo
-- Project loading and saving
-- Settings
-- File dialogs
-- Background tasks
-- Plugin metadata
-- Content management
-- Interop with the Zig engine
-
-### Avalonia UI
-
-Responsible for:
-
-- Timeline
-- Mixer
-- Track controls
-- Piano roll
-- Transport controls
-- Browser panels
-- Plugin windows
-- Project settings
-- Themes
-- Keyboard shortcuts
-- Accessibility
-- Localization
-
-Dense visual areas such as waveforms, automation lanes and piano rolls may use custom rendering and virtualization rather than one UI control per item.
+Future layers (UI, application logic) will sit above the C ABI and can be implemented in any language.
 
 ---
 
@@ -386,46 +365,24 @@ OpenTune will not bundle copyrighted commercial content without permission.
 
 ---
 
-## 🗂️ Planned Repository Structure
+## 🗂️ Repository Structure
 
 ```text
 OpenTune/
 ├── engine/
-│   ├── build.zig
-│   ├── build.zig.zon
+│   ├── include/
+│   │   └── opentune_engine.h          # Public C ABI header
 │   └── src/
-│       ├── audio/
-│       ├── dsp/
-│       ├── graph/
-│       ├── mixer/
-│       ├── midi/
-│       ├── project/
-│       └── main.zig
+│       ├── audio/                     # Audio device I/O
+│       ├── dsp/                       # DSP algorithms
+│       ├── graph/                     # Audio graph
+│       ├── mixer/                     # Mixer & channel strip
+│       ├── midi/                      # MIDI handling
+│       └── project/                   # Project & track management
 │
-├── interop/
-│   ├── opentune_engine.h
-│   └── generated/
+├── tests/                             # Test sources
 │
-├── ui/
-│   └── OpenTune.UI/
-│       ├── Models/
-│       ├── ViewModels/
-│       ├── Views/
-│       ├── Controls/
-│       ├── Rendering/
-│       └── Interop/
-│
-├── tests/
-│   ├── audio/
-│   ├── dsp/
-│   ├── project/
-│   └── interop/
-│
-├── docs/
-├── examples/
-├── CONTRIBUTING.md
-├── SECURITY.md
-├── CODE_OF_CONDUCT.md
+├── CMakeLists.txt                     # Top-level build
 ├── LICENSE
 └── README.md
 ```
@@ -436,34 +393,27 @@ OpenTune/
 
 ### Requirements
 
-- Zig
-- .NET SDK
+- CMake 3.20+
+- C++20 compatible compiler (MSVC 19.30+, GCC 11+, Clang 13+)
 - Git
 - Platform-specific audio development tools
 - A supported desktop operating system
 
-### Build the Zig Engine
+### Build the Engine
 
 ```bash
-cd engine
-zig build
+mkdir -p build && cd build
+cmake .. -DCMAKE_BUILD_TYPE=Release
+cmake --build . --config Release
 ```
 
-### Restore the .NET UI
+The built shared library will be in `build/bin/`.
+
+### Run Tests
 
 ```bash
-dotnet restore ui/OpenTune.UI/OpenTune.UI.csproj
+ctest --output-on-failure
 ```
-
-### Run the UI
-
-```bash
-dotnet run --project ui/OpenTune.UI/OpenTune.UI.csproj
-```
-
-The build and packaging workflow is still evolving during the pre-alpha phase.
-
-The final application will package the Avalonia frontend together with the correct native Zig engine for each target platform.
 
 ---
 
@@ -490,11 +440,9 @@ Every DSP algorithm should be testable without starting the graphical applicatio
 ### Phase 0 — Foundation
 
 - Define the C ABI
-- Build the Zig engine library
-- Connect the engine to C#
+- Build the C++ engine library
 - Open an audio device
 - Produce and capture audio
-- Create a basic Avalonia application shell
 
 ### Phase 1 — Audio MVP
 
@@ -554,16 +502,12 @@ Contributions are welcome.
 
 You can help with:
 
-- Zig audio development
+- C++ audio engine development
 - DSP algorithms
-- Avalonia UI
-- C# application architecture
 - C ABI design
 - MIDI support
 - Testing
 - Documentation
-- Accessibility
-- Localization
 - Sound design
 - User experience research
 
@@ -573,7 +517,7 @@ Please keep the following principles in mind:
 
 - Do not block the real-time audio thread.
 - Do not allocate memory in real-time processing paths.
-- Do not expose Zig implementation details through the public ABI.
+- Do not expose C++ implementation details through the public ABI.
 - Add tests for DSP and file-format changes.
 - Keep UI and engine responsibilities separated.
 - Document platform-specific behavior.
