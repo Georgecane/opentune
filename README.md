@@ -1,291 +1,217 @@
 # 🎵 OpenTune
 
 ![License](https://img.shields.io/badge/license-GPLv3-blue.svg)
-![Engine](https://img.shields.io/badge/audio%20engine-C%2B%2B20-orange.svg)
+![Language](https://img.shields.io/badge/core%20language-Zig-f7a41d.svg)
 ![Status](https://img.shields.io/badge/status-pre--alpha-red.svg)
 
-**OpenTune** is a free, open‑source, cross‑platform Digital Audio Workstation (DAW) built around a **C++20 audio engine** with a **stable C ABI**. The project targets Windows, macOS and Linux and is designed to be extensible, performant, and fully open‑source.
+**OpenTune** is a free, open-source, cross-platform Digital Audio Workstation (DAW) designed to grow into a professional, industry-grade music production environment.
+
+OpenTune is being built **Zig-first**, with the native audio engine and core systems implemented in Zig. The project is designed around real-time reliability, low latency, explicit resource management, portability, extensibility, and user ownership.
+
+> **Professional audio. Open to everyone.**
 
 ---
 
-## 📦 Programming Stack
+## 🌍 Vision
 
-| Component | Language / Technology | Role |
-|-----------|----------------------|------|
-| Audio Engine | **C++20** | Real‑time, low‑latency audio processing. |
-| Build System | **CMake 3.20+** | Compiles the native engine library. |
-| C ABI Layer | **C-compatible header** (`opentune_engine.h`) | Stable interface for future UI bindings (C#, Rust, Python, etc.). |
+OpenTune aims to become a complete, professional and globally accessible DAW without requiring proprietary software, subscriptions, activation servers, or closed project ecosystems.
 
-The engine exposes a stable C ABI (`engine/include/opentune_engine.h`), allowing future UI front‑ends (Avalonia/.NET, Qt, web, etc.) to invoke engine functions safely without compromising real‑time performance.
+The long-term vision includes:
 
----
+- Professional multitrack recording
+- Advanced audio editing
+- Full MIDI production
+- Software instruments
+- Professional mixing and routing
+- Automation and modulation
+- Mastering workflows
+- Low-latency real-time audio
+- Open plugin standards
+- Cross-platform native support
+- Accessible and localized interfaces
+- Portable and documented project formats
+- A community-driven extension ecosystem
 
-## 🛠️ Build & Run
-
-### Prerequisites
-
-* **CMake 3.20+** – for the engine build.
-* **C++20 compatible compiler** (MSVC 19.30+, GCC 11+, Clang 13+).
-* **Git** – to clone the repository.
-
-### Steps
-
-```bash
-# Clone the repository
-git clone https://github.com/yourorg/opentune.git
-cd opentune
-
-# Build the native engine
-mkdir -p build && cd build
-cmake .. -DCMAKE_BUILD_TYPE=Release
-cmake --build . --config Release
-```
-
-The built shared library (`opentune_engine.dll` / `libopentune_engine.so` / `libopentune_engine.dylib`) will be in `build/bin/`.
-
-### Running Tests
-
-```bash
-# From build directory
-ctest --output-on-failure
-```
+OpenTune is not intended to clone any particular commercial DAW. It is an independent project that aims to build a modern production environment from first principles.
 
 ---
 
-## ⚠️ Project Status
+## 🧠 Zig-First Architecture
 
-OpenTune is currently **pre‑alpha**. The core audio engine is implemented in C++20 with a stable C ABI. The UI layer has not been implemented yet — the project is focused on building a solid, testable audio engine foundation first. Contributions are welcome, but the software is not yet suitable for production use.
+**Zig is the primary programming language of OpenTune.**
+
+The project is intentionally designed around Zig rather than using Zig merely as a wrapper around a C or C++ engine.
+
+The long-term native core includes:
+
+- Audio engine
+- DSP
+- Audio graph
+- Mixer
+- Routing
+- MIDI engine
+- Transport
+- Recording
+- Project system
+- Automation
+- Plugin hosting
+- Offline rendering
+- Platform abstraction
+- Application infrastructure
+
+Zig provides OpenTune with:
+
+- Native performance
+- Explicit memory allocation
+- No garbage collector
+- Compile-time safety checks
+- Predictable data structures
+- Low-level system access
+- Cross-compilation
+- C interoperability
+- A simple native build system
+- Fine-grained control over real-time resources
+
+OpenTune will use Zig's capabilities while applying strict engineering practices for professional audio software.
+
+### Important Safety Principle
+
+Zig is not a fully memory-safe language.
+
+Therefore, OpenTune will prioritize:
+
+- Explicit ownership
+- Clear lifetime rules
+- Small unsafe sections
+- Extensive testing
+- Sanitizers during development
+- Fuzz testing
+- Deterministic offline rendering tests
+- Real-time allocation checks
+- Code review
+- Defensive parsing of untrusted project and plugin data
+
+Performance is important, but correctness and reliability come first.
 
 ---
 
-## 📚 Documentation
+## 🎚️ Real-Time Audio
 
-* **Engine API** – generated header `engine/include/opentune_engine.h`.
-* **Contribution Guide** – see `CONTRIBUTING.md` (to be added).
+The audio engine is the heart of OpenTune.
 
----
+Real-time audio processing must meet strict deadlines. Audio-critical paths should therefore avoid unpredictable operations such as:
 
-## 🤝 Contributing
-
-We follow a **transparent, open** development model:
-
-* Fork the repository and submit pull requests.
-* Keep changes focused on a single concern (engine, UI, or tooling).
-* Ensure tests pass (`ctest` from the build directory).
-* Adhere to the coding standards outlined in `CODE_OF_CONDUCT.md`.
-
----
-
-## 📜 License
-
-OpenTune is licensed under the **GPLv3**. See `LICENSE` for the full text.
-
-The project is built around one central idea:
-
-> **A small and reliable core, an unlimited studio.**
-
-## ✨ What Is OpenTune?
-
-OpenTune is designed to become a serious open alternative to traditional commercial DAWs.
-
-The goal is not to copy a specific application. Instead, OpenTune aims to combine the best ideas from modern music production tools while maintaining:
-
-- A transparent and auditable codebase
-- A predictable real-time audio engine
-- A modern visual workflow
-- A modular and extensible architecture
-- A completely free and open-source core
-- Cross-platform support for Windows, macOS and Linux
-
-OpenTune is inspired by the workflows found in applications such as:
-
-- Logic Pro
-- Ableton Live
-- Bitwig Studio
-- REAPER
-- Ardour
-
-OpenTune is an independent project and is not affiliated with any of these products or their creators.
-
----
-
-## 🧠 Core Principles
-
-### 1. Real-Time Reliability
-
-Audio processing must remain stable under pressure.
-
-The audio thread should avoid:
-
-- Memory allocation
+- Dynamic allocation during processing
 - Blocking locks
 - File-system operations
 - Network operations
 - UI calls
-- Garbage collection
 - Unbounded queues
-- Unpredictable background work
+- Unbounded computation
+- Uncontrolled synchronization
 
-The engine is designed around preallocated buffers, bounded communication, explicit ownership and predictable processing deadlines.
+The engine will favor:
 
-### 2. Open by Default
-
-OpenTune is intended to remain free and open-source.
-
-The project will prioritize:
-
-- Open file formats
-- Documented APIs
-- Open plugin standards
-- Reproducible builds
-- Community contribution
-- Transparent development
-
-### 3. Modular Architecture
-
-The audio engine, user interface, project system and content ecosystem should remain decoupled.
-
-This allows each subsystem to evolve independently without turning the entire application into one tightly coupled codebase.
-
-### 4. User Ownership
-
-Users should own their projects, recordings, presets and content.
-
-OpenTune should not require:
-
-- A subscription
-- An online account
-- Cloud activation
-- Internet access for basic functionality
-- A proprietary project server
+- Preallocated resources
+- Bounded communication
+- Explicit ownership
+- Lock-free or real-time-safe communication where appropriate
+- Predictable processing graphs
+- Sample-accurate timing
+- Deterministic offline rendering
 
 ---
 
-## 🚀 Why C++20?
+## 🏗️ Architecture
 
-The OpenTune audio engine is written in **C++20**.
+OpenTune is designed as a modular native application.
 
-C++20 is well-suited for the engine because it provides:
+```
+┌───────────────────────────────────────┐
+│              OpenTune UI              │
+├───────────────────────────────────────┤
+│       Application / Project Layer     │
+├───────────────────────────────────────┤
+│       Timeline / MIDI / Automation   │
+├───────────────────────────────────────┤
+│        Audio Graph / Mixer / Bus     │
+├───────────────────────────────────────┤
+│             DSP / Engine              │
+├───────────────────────────────────────┤
+│       Audio I/O / Platform Layer      │
+├───────────────────────────────────────┤
+│                 Zig                   │
+└───────────────────────────────────────┘
+```
 
-- Native performance
-- Explicit memory management
-- No garbage collector
-- Predictable control over data structures
-- RAII for resource management
-- Excellent C interoperability (direct C ABI export)
-- Cross-platform toolchain support (MSVC, GCC, Clang)
-- Mature ecosystem of audio libraries
-- Zero-cost abstractions where needed
+The exact implementation will evolve, but the architecture should keep these responsibilities independently testable.
 
-C++20 features like concepts, `std::span`, `std::bit_cast`, and `constexpr` improvements allow writing safer, more expressive code without runtime overhead. The engine is compiled with exceptions and RTTI disabled on audio-critical paths to ensure predictable real-time behavior.
+### Core Subsystems
+
+**Audio Engine**
+
+Handles real-time processing, transport, buffers, device I/O, recording, playback and rendering.
+
+**DSP**
+
+Contains effects, filters, dynamics processors, synthesis, analysis and other signal-processing algorithms.
+
+**Audio Graph**
+
+Provides routing between tracks, buses, effects, instruments and outputs.
+
+**MIDI**
+
+Handles MIDI devices, events, clips, piano-roll data, controllers, MPE and future MIDI 2.0 integration.
+
+**Project System**
+
+Handles project serialization, media references, undo/redo, autosave, versioning and migration.
+
+**Plugin System**
+
+Hosts native OpenTune processors and external open plugin standards.
+
+**UI**
+
+Provides the professional workstation interface while remaining separated from the real-time audio thread.
 
 ---
 
-## 🖥️ C ABI as the Stable Interface
-
-The OpenTune engine exposes a **stable C ABI** (`opentune_engine.h`) as its public interface.
-
-Using a C ABI provides:
-
-- Language-agnostic bindings — any language with C FFI (C#, Rust, Python, Zig, Go, etc.) can call the engine
-- ABI stability across compiler versions
-- No C++ name mangling or RTTI dependencies
-- Clear API boundaries enforced by the header
-- Opaque handles that hide implementation details
-- Natural versioning via the API surface
-
-No UI frontend has been built yet — the current focus is on the engine core. The C ABI ensures that when a UI layer is added, it can be implemented in any language without engine changes.
-
-### Engine ↔ UI Boundary
-
-The **C++ audio engine** and any future UI will communicate via the **stable C ABI**:
-
-```
-C++ Audio Engine
-    │  Stable C ABI (opentune_engine.h)
-    ▼
-C FFI Bindings (any language)
-    │  Commands & state snapshots
-    ▼
-Future UI (Avalonia / Qt / egui / etc.)
-```
-
-Key boundary traits:
-
-* Opaque engine handles
-* Fixed‑layout C‑compatible structs
-* Numeric identifiers
-* Explicit buffer ownership
-* Versioned API functions
-* Bounded command queues
-* Read‑only state snapshots
-
-The audio thread will never call into any UI runtime or allocate memory during real-time processing.
-
----
-
-## 🏗️ Architecture Overview
-
-OpenTune’s design is split into two current layers, with room for future expansion:
-
-```
-┌───────────────────────────┐
-│   C ABI (opentune_engine.h) │  ←  Stable Public Interface
-└─────────────▲─────────────┘
-              │   Internal Calls
-┌─────────────▼─────────────┐
-│   C++ Audio Engine        │  ←  Real‑time DSP
-└───────────────────────────┘
-```
-
-### 1. C++ Audio Engine
-* C++20 code compiled as a shared library.
-* Handles device I/O, audio graph execution, DSP, mixing, routing, MIDI, project management, and plugin processing.
-* No heap allocations, locks, or OS calls on the audio thread.
-
-### 2. C ABI Layer
-* Exposes a **stable, versioned C ABI** (`opentune_engine.h`).
-* Provides opaque handles, fixed‑layout structs, and command queues.
-* Guarantees backward compatibility across engine revisions.
-
-Future layers (UI, application logic) will sit above the C ABI and can be implemented in any language.
-
----
-
-## 🎚️ Planned Features
+## 🎛️ Planned Features
 
 ### Audio
 
 - Multi-track recording
-- Non-destructive audio editing
+- Non-destructive editing
 - Waveform visualization
-- Crossfades
 - Clip gain
-- Track and bus routing
-- Sends and returns
-- Sidechain routing
-- Latency compensation
-- Offline rendering
+- Fades and crossfades
+- Take management
+- Comping
+- Punch recording
+- Time stretching
+- Pitch processing
+- Audio warping
 - Sample-accurate transport
 - Multiple sample rates
 - Multiple buffer sizes
 - Input monitoring
-- Punch recording
-- Take management
-- Comping
+- Offline rendering
+- Latency compensation
 
 ### MIDI
 
-- MIDI input and output
+- MIDI input/output
 - MIDI clips
 - Piano roll
 - MIDI editing
 - Quantization
 - Velocity editing
 - Automation
-- MPE support
+- MPE
 - MIDI controller mapping
-- Future MIDI 2.0 support
+- MIDI 2.0 support
 
 ### Mixing
 
@@ -293,99 +219,152 @@ Future layers (UI, application logic) will sit above the C ABI and can be implem
 - Mute and solo
 - Groups and buses
 - Sends and returns
+- Sidechain routing
 - Automation
-- Metering
-- Peak and RMS monitoring
+- Peak/RMS metering
 - Plugin chains
 - Track freezing
-- Bounce and render workflows
+- Bounce and rendering
+- Multi-output routing
+
+### Instruments & Sound Design
+
+- Native synthesizers
+- Samplers
+- Drum machines
+- Wavetable synthesis
+- Granular processing
+- Physical-modeling experiments
+- Native instruments
+- Community instruments
+- Preset systems
 
 ### Project Management
 
 - Versioned project format
 - Autosave
-- Undo and redo
-- Non-destructive editing
-- Portable project folders
+- Undo/redo
+- Portable projects
 - Media relinking
 - Missing-file detection
-- Project templates
-- Consolidation and archiving
+- Templates
+- Consolidation
+- Archiving
+- Project migration
 
 ### User Interface
 
 - Dockable panels
 - Resizable workspace
 - Keyboard-first workflows
-- Custom themes
 - High-DPI support
-- Dark and light modes
+- Dark and light themes
 - Localization
-- Accessibility support
+- Accessibility
 - Scalable timeline rendering
+- Custom editor views
+- Hardware controller integration
 
 ---
 
-## 🔌 Plugin Strategy
+## 🔌 Plugin Ecosystem
 
 OpenTune will prioritize open and well-documented plugin standards.
 
-The initial plugin strategy is expected to focus on:
+The initial strategy includes:
 
-1. A native OpenTune processor API
-2. CLAP support
-3. LV2 support where appropriate
-4. Additional formats after licensing and compatibility review
+1. **Native OpenTune plugins**
+2. **CLAP**
+3. **LV2**
+4. Additional formats where technically and legally appropriate
 
-Third-party plugin processing should eventually support isolation or sandboxing so that an unstable plugin does not terminate the entire application.
+The native plugin architecture will be designed around real-time safety and explicit resource ownership.
 
-Plugin hosting will be developed after the core audio graph and processing model are stable.
+Third-party plugins should eventually support process isolation or sandboxing so that a faulty plugin does not necessarily terminate the entire DAW.
 
 ---
 
-## 📦 Content Ecosystem
+## 🌐 Cross-Platform
 
-OpenTune will keep the application core separate from large sound libraries.
+OpenTune targets:
 
-Users should be able to install optional content such as:
+- Linux
+- Windows
+- macOS
 
-- Sample libraries
-- Instrument libraries
-- Presets
-- Drum kits
-- Templates
-- Impulse responses
-- Wavetables
-- MIDI packs
-- Community extensions
+The core should remain as platform-independent as practical, with operating-system-specific functionality isolated behind explicit interfaces.
 
-Content will be distributed separately from the core application and may use its own license.
+Zig's cross-compilation capabilities are an important part of the project's portability strategy.
 
-OpenTune will not bundle copyrighted commercial content without permission.
+---
+
+## 📦 Open Project Format
+
+OpenTune should not lock users into a proprietary ecosystem.
+
+The project format is intended to be:
+
+- Documented
+- Versioned
+- Portable
+- Extensible
+- Recoverable
+- Backward-aware
+- Friendly to source control where practical
+
+Projects should support:
+
+- Autosave
+- Undo/redo
+- Media management
+- Missing-file detection
+- Relinking
+- Consolidation
+- Archiving
+- Version migration
+
+Users should retain control over their recordings, projects, presets and other creative work.
 
 ---
 
 ## 🗂️ Repository Structure
 
+The repository will evolve with the architecture.
+
+The intended direction is:
+
 ```text
 OpenTune/
-├── engine/
-│   ├── include/
-│   │   └── opentune_engine.h          # Public C ABI header
-│   └── src/
-│       ├── audio/                     # Audio device I/O
-│       ├── dsp/                       # DSP algorithms
-│       ├── graph/                     # Audio graph
-│       ├── mixer/                     # Mixer & channel strip
-│       ├── midi/                      # MIDI handling
-│       └── project/                   # Project & track management
+├── src/
+│   ├── audio/
+│   ├── dsp/
+│   ├── graph/
+│   ├── mixer/
+│   ├── midi/
+│   ├── project/
+│   ├── plugins/
+│   ├── platform/
+│   └── ui/
 │
-├── tests/                             # Test sources
+├── tests/
+│   ├── audio/
+│   ├── dsp/
+│   ├── graph/
+│   ├── midi/
+│   └── project/
 │
-├── CMakeLists.txt                     # Top-level build
+├── docs/
+├── examples/
+├── build.zig
+├── build.zig.zon
+├── CONTRIBUTING.md
+├── SECURITY.md
+├── CODE_OF_CONDUCT.md
 ├── LICENSE
 └── README.md
 ```
+
+This structure is a direction rather than a rigid requirement. The architecture should evolve with the needs of the project.
 
 ---
 
@@ -393,27 +372,30 @@ OpenTune/
 
 ### Requirements
 
-- CMake 3.20+
-- C++20 compatible compiler (MSVC 19.30+, GCC 11+, Clang 13+)
+- Zig
 - Git
 - Platform-specific audio development tools
 - A supported desktop operating system
 
-### Build the Engine
+### Build
 
 ```bash
-mkdir -p build && cd build
-cmake .. -DCMAKE_BUILD_TYPE=Release
-cmake --build . --config Release
+zig build
 ```
 
-The built shared library will be in `build/bin/`.
-
-### Run Tests
+### Run
 
 ```bash
-ctest --output-on-failure
+zig build run
 ```
+
+### Test
+
+```bash
+zig build test
+```
+
+Build and packaging workflows are expected to evolve throughout the pre-alpha phase.
 
 ---
 
@@ -421,137 +403,184 @@ ctest --output-on-failure
 
 OpenTune will use multiple levels of testing:
 
-- Unit tests for DSP algorithms
-- Deterministic offline rendering tests
+- Unit tests
+- DSP correctness tests
 - Audio graph tests
+- Deterministic offline rendering
 - Project format compatibility tests
-- C ABI interop tests
-- Fuzz testing for file parsers
+- Plugin compatibility tests
+- Fuzz testing
 - Performance benchmarks
 - Real-time allocation checks
-- Cross-platform CI builds
+- Cross-platform CI
+- Regression testing
 
-Every DSP algorithm should be testable without starting the graphical application.
+DSP algorithms should be testable independently from the graphical application whenever possible.
 
 ---
 
 ## 🗺️ Roadmap
 
-### Phase 0 — Foundation
+### Phase 0 — Zig Foundation
 
-- Define the C ABI
-- Build the C++ engine library
-- Open an audio device
-- Produce and capture audio
+- Establish the Zig project structure
+- Define core ownership conventions
+- Establish platform abstraction
+- Build the first executable
+- Initialize audio devices
+- Establish automated testing
+- Define the initial audio buffer model
 
 ### Phase 1 — Audio MVP
 
-- Audio tracks
+- Audio input/output
 - Playback
 - Recording
-- Waveform display
+- Transport
+- Basic tracks
+- Waveform rendering
 - Basic editing
-- Mixer
 - Project save/load
-- Undo/redo
 
-### Phase 2 — Music Production
+### Phase 2 — DAW Core
 
-- MIDI clips
-- Piano roll
-- Automation
+- Audio graph
+- Mixer
 - Routing
 - Buses
-- Sends and returns
+- Sends/returns
+- Automation
+- MIDI
+- Piano roll
 - Offline rendering
 
-### Phase 3 — Extensibility
+### Phase 3 — Professional Production
 
-- Native OpenTune processors
+- Advanced editing
+- Comping
+- Time stretching
+- Pitch processing
+- Latency compensation
+- Plugin chains
+- Track freezing
+- Advanced automation
+- Hardware control
+
+### Phase 4 — Plugin Ecosystem
+
+- Native OpenTune plugin API
 - CLAP hosting
+- LV2 integration
 - Plugin scanning
 - Plugin state management
 - Presets
-- Sandboxed processing
+- Fault isolation
 
-### Phase 4 — Professional Workflows
+### Phase 5 — Global Ecosystem
 
-- Comping
-- Track freezing
-- Advanced editing
-- Time stretching
-- Pitch processing
-- Multi-output instruments
-- Hardware control
-- Advanced project management
-
-### Phase 5 — Ecosystem
-
-- Optional sound libraries
-- Community presets
-- Extension APIs
-- Documentation portal
-- Localization community
-- Portable content packages
+- Localization
+- Accessibility
+- Community extensions
+- Instrument ecosystem
+- Sound libraries
+- Preset sharing
+- Developer SDK
+- Documentation platform
+- Community tooling
 
 ---
 
 ## 🤝 Contributing
 
-Contributions are welcome.
+OpenTune is intended to be a community-driven project.
 
-You can help with:
+Contributions are welcome in:
 
-- C++ audio engine development
-- DSP algorithms
-- C ABI design
-- MIDI support
+- Zig development
+- Audio engineering
+- DSP
+- MIDI
+- Plugin development
+- UI/UX
 - Testing
 - Documentation
+- Localization
+- Accessibility
 - Sound design
-- User experience research
 
-Before contributing large architectural changes, please open an issue or design discussion.
-
-Please keep the following principles in mind:
+### Development Principles
 
 - Do not block the real-time audio thread.
-- Do not allocate memory in real-time processing paths.
-- Do not expose C++ implementation details through the public ABI.
-- Add tests for DSP and file-format changes.
-- Keep UI and engine responsibilities separated.
-- Document platform-specific behavior.
+- Avoid allocation in real-time processing paths.
+- Keep ownership explicit.
+- Keep platform-specific code isolated.
+- Test DSP and serialization behavior.
+- Keep public interfaces documented.
+- Prefer simple architecture over unnecessary abstraction.
+- Design for professional audio workflows from the beginning.
 
 ---
 
 ## 🔐 Security
 
-If you find a security vulnerability, please do not immediately publish unpatched exploit details in a public issue.
+If you discover a security vulnerability, please avoid publishing unpatched exploit details in a public issue.
 
 See [SECURITY.md](SECURITY.md) for the responsible disclosure process.
 
 ---
 
-## 📄 License
+## 📜 License
 
 OpenTune is free and open-source software licensed under the **GNU General Public License v3.0**.
 
 See [LICENSE](LICENSE) for the complete license text.
 
-Third-party dependencies, libraries, plugins, fonts, samples and content may be distributed under their own licenses. Always review the license of external content before redistributing it.
+Third-party dependencies, plugins, fonts, samples and other external content may have separate licenses.
 
 ---
 
-## 🌍 Vision
+## 🌍 Global Open-Source Audio
 
-OpenTune is more than an audio editor.
+OpenTune is intended to become a global open-source platform for digital music production.
 
-It is an attempt to build a transparent, extensible and community-driven foundation for music production.
+The project is built around a simple principle:
 
-A DAW that respects its users.
+**Professional music production should be accessible without proprietary lock-in.**
 
-A DAW that does not hide its architecture.
+OpenTune should be:
 
-A DAW that can grow from a lightweight core into a complete studio.
+- Free to obtain
+- Open to inspect
+- Open to modify
+- Open to extend
+- Portable across supported platforms
+- Accessible to musicians around the world
+- Friendly to independent developers
 
-> **OpenTune: a small core, an unlimited studio.**
+---
+
+## ⭐ Philosophy
+
+OpenTune is not simply another DAW.
+
+It is an attempt to build an open foundation for professional digital music production.
+
+A DAW where the architecture is visible.
+
+A DAW where users own their projects.
+
+A DAW where developers can build without asking permission.
+
+A DAW that can grow from a small real-time audio engine into a complete professional studio.
+
+> **OpenTune: professional audio, open to everyone.**
+
+---
+
+## 📌 Current Status
+
+OpenTune is currently in **pre-alpha development**.
+
+The architecture and implementation are expected to change substantially as the Zig-based foundation is built.
+
+Early development is focused on establishing the Zig-native core, real-time audio architecture, DSP model, project system, plugin architecture and cross-platform foundation before expanding into the complete DAW experience.
