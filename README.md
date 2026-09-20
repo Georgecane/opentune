@@ -1,8 +1,6 @@
 # 🎵 OpenTune
 
-<p align="center">
-  <img src="logo.png" alt="OpenTune Logo" width="220">
-</p>
+![OpenTune Logo](logo.png)
 
 ![License](https://img.shields.io/badge/license-GPLv3-blue.svg)
 ![Language](https://img.shields.io/badge/core%20language-Zig-f7a41d.svg)
