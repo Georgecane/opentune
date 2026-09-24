@@ -1,7 +1,7 @@
 .{
     .name = .opentune,
     .version = "0.1.0",
-    .fingerprint = 0x6d4f70656e54756e,
     .minimum_zig_version = "0.16.0",
+    .fingerprint = 0x6d4f70656e54756e,
     .dependencies = .{},
 }
