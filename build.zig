@@ -40,12 +40,34 @@ pub fn build(b: *std.Build) void {
         .root_module = app,
     });
     const run_tests = b.addRunArtifact(tests);
-    const test_step = b.step("test", "Run OpenTune tests");
-    test_step.dependOn(&run_tests.step);
+    const suite = b.addTest(.{
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/test_suite.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+    const run_suite = b.addRunArtifact(suite);
 
-    const fmt_step = b.step("fmt", "Format OpenTune source");
+    const test_step = b.step("test", "Run OpenTune unit and integration tests");
+    test_step.dependOn(&run_tests.step);
+    test_step.dependOn(&run_suite.step);
+
+    const test_core = b.step("test-core", "Run core tests");
+    test_core.dependOn(&run_suite.step);
+
+    const test_dsp = b.step("test-dsp", "Run DSP tests");
+    test_dsp.dependOn(&run_suite.step);
+
+    const test_graph = b.step("test-graph", "Run graph tests");
+    test_graph.dependOn(&run_suite.step);
+
+    const test_audio = b.step("test-audio", "Run audio engine tests");
+    test_audio.dependOn(&run_suite.step);
+
+    const fmt_step = b.step("fmt", "Format OpenTune source and tests");
     const fmt = b.addFmt(.{
-        .paths = &.{ "src", "build.zig" },
+        .paths = &.{ "src", "tests", "build.zig" },
         .check = false,
     });
     fmt_step.dependOn(&fmt.step);
