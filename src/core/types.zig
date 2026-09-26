@@ -1,5 +1,3 @@
-const std = @import("std");
-
 pub const Result = error{
     InvalidArgument,
     InvalidState,
@@ -18,15 +16,18 @@ pub const FrameCount = u32;
 pub const ChannelCount = u32;
 pub const TransportSample = u64;
 
+pub const AudioLayout = enum {
+    planar,
+    interleaved,
+};
+
 pub const AudioFormat = struct {
     sample_rate: SampleRate,
     channels: ChannelCount,
+    layout: AudioLayout = .planar,
 
     pub fn init(sample_rate: SampleRate, channels: ChannelCount) AudioFormat {
-        return .{
-            .sample_rate = sample_rate,
-            .channels = channels,
-        };
+        return .{ .sample_rate = sample_rate, .channels = channels };
     }
 };
 
@@ -36,9 +37,7 @@ pub const ProcessContext = struct {
     transport_sample: TransportSample,
 };
 
-pub const DeviceId = struct {
-    value: u64,
-};
+pub const DeviceId = struct { value: u64 };
 
 pub const DeviceInfo = struct {
     id: DeviceId,
@@ -49,8 +48,6 @@ pub const DeviceInfo = struct {
     max_channels: ChannelCount,
 };
 
-pub const DeviceDirection = enum {
-    input,
-    output,
-    duplex,
-};
+pub const DeviceDirection = enum { input, output, duplex };
+
+pub const QualityMode = enum { eco, normal, high, ultra };
