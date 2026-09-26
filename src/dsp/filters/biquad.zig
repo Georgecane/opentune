@@ -59,38 +59,109 @@ pub fn lowpass(sample_rate: f32, frequency: f32, q: f32) Coefficients {
     return .{ .b0 = b0 / a0, .b1 = b1 / a0, .b2 = b0 / a0, .a1 = a1 / a0, .a2 = a2 / a0 };
 }
 
-test "lowpass coefficients are finite and normalized" {
-    const c = lowpass(48_000, 1_000, 0.707);
+fn expectFinite(c: Coefficients) !void {
     try std.testing.expect(std.math.isFinite(c.b0));
     try std.testing.expect(std.math.isFinite(c.b1));
     try std.testing.expect(std.math.isFinite(c.b2));
     try std.testing.expect(std.math.isFinite(c.a1));
     try std.testing.expect(std.math.isFinite(c.a2));
-    try std.testing.expectApproxEqAbs(@as(f32, 1.0), c.b0 + c.b1 + c.b2 + c.a1 + c.a2, 2.0);
 }
 
-test "lowpass attenuates a high frequency step response over time" {
-    var samples = [_]f32{1} ** 128;
+test "lowpass has unity DC gain" {
+    const c = lowpass(48_000, 1_000, 0.707);
+    try expectFinite(c);
+
+    const numerator = c.b0 + c.b1 + c.b2;
+    const denominator = 1.0 + c.a1 + c.a2;
+    const dc_gain = numerator / denominator;
+
+    try std.testing.expectApproxEqAbs(@as(f32, 1.0), dc_gain, 0.00001);
+}
+
+test "lowpass impulse response matches the recurrence" {
+    const c = lowpass(48_000, 1_000, 0.707);
+    var actual_samples = [_]f32{0} ** 64;
+    var expected_samples = [_]f32{0} ** 64;
+
+    actual_samples[0] = 1;
+    var audio = buffer.AudioBuffer.init(&actual_samples, 1, 48_000);
+    var states = [_]State{.{}};
+    var filter = Biquad.init(&states);
+    filter.setCoefficients(c);
+    filter.process(&audio);
+
+    var z1: f32 = 0;
+    var z2: f32 = 0;
+    for (0..expected_samples.len) |i| {
+        const input: f32 = if (i == 0) 1 else 0;
+        const output = c.b0 * input + z1;
+        z1 = c.b1 * input - c.a1 * output + z2;
+        z2 = c.b2 * input - c.a2 * output;
+        expected_samples[i] = output;
+    }
+
+    for (actual_samples, expected_samples) |actual, expected| {
+        try std.testing.expectApproxEqAbs(expected, actual, 0.0000001);
+        try std.testing.expect(std.math.isFinite(actual));
+    }
+}
+
+test "lowpass step response converges to its DC gain" {
+    const c = lowpass(48_000, 1_000, 0.707);
+    const expected_gain = (c.b0 + c.b1 + c.b2) / (1.0 + c.a1 + c.a2);
+
+    var samples = [_]f32{1} ** 4096;
     var audio = buffer.AudioBuffer.init(&samples, 1, 48_000);
     var states = [_]State{.{}};
     var filter = Biquad.init(&states);
-    filter.setCoefficients(lowpass(48_000, 1_000, 0.707));
+    filter.setCoefficients(c);
     filter.process(&audio);
 
-    try std.testing.expect(audio.channel(0)[0] > 0);
-    try std.testing.expect(audio.channel(0)[127] > audio.channel(0)[0]);
-    try std.testing.expect(audio.channel(0)[127] < 1.1);
+    const final = audio.channel(0)[audio.frames - 1];
+    try std.testing.expectApproxEqAbs(expected_gain, final, 0.0001);
+    for (audio.channel(0)) |sample| {
+        try std.testing.expect(std.math.isFinite(sample));
+    }
 }
 
-test "biquad reset clears state" {
-    var samples = [_]f32{1} ** 16;
-    var audio = buffer.AudioBuffer.init(&samples, 1, 48_000);
+test "lowpass state is continuous across blocks" {
+    const c = lowpass(48_000, 1_000, 0.707);
+
+    var whole = [_]f32{1} ** 256;
+    var split = [_]f32{1} ** 256;
+
+    var whole_audio = buffer.AudioBuffer.init(&whole, 1, 48_000);
+    var split_first_audio = buffer.AudioBuffer.init(split[0..128], 1, 48_000);
+    var split_second_audio = buffer.AudioBuffer.init(split[128..], 1, 48_000);
+
+    var whole_states = [_]State{.{}};
+    var split_states = [_]State{.{}};
+    var whole_filter = Biquad.init(&whole_states);
+    var split_filter = Biquad.init(&split_states);
+    whole_filter.setCoefficients(c);
+    split_filter.setCoefficients(c);
+
+    whole_filter.process(&whole_audio);
+    split_filter.process(&split_first_audio);
+    split_filter.process(&split_second_audio);
+
+    try std.testing.expectEqualSlices(f32, whole_audio.samples, split);
+}
+
+test "biquad reset restores the initial response" {
+    const c = lowpass(48_000, 1_000, 0.707);
+    var first = [_]f32{1} ** 128;
+    var second = [_]f32{1} ** 128;
+
+    var a = buffer.AudioBuffer.init(&first, 1, 48_000);
+    var b = buffer.AudioBuffer.init(&second, 1, 48_000);
     var states = [_]State{.{}};
     var filter = Biquad.init(&states);
-    filter.setCoefficients(lowpass(48_000, 1_000, 0.707));
-    filter.process(&audio);
-    try std.testing.expect(states[0].z1 != 0 or states[0].z2 != 0);
+    filter.setCoefficients(c);
+
+    filter.process(&a);
     filter.reset();
-    try std.testing.expectEqual(@as(f32, 0), states[0].z1);
-    try std.testing.expectEqual(@as(f32, 0), states[0].z2);
+    filter.process(&b);
+
+    try std.testing.expectEqualSlices(f32, first, second);
 }
