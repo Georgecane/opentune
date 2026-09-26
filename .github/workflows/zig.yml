@@ -33,7 +33,7 @@ jobs:
         run: zig version
 
       - name: Check formatting
-        run: zig fmt --check src build.zig
+        run: zig fmt --check src tests build.zig
 
       - name: Run tests
         run: zig build test -Doptimize=Debug
