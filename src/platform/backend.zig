@@ -23,18 +23,18 @@ pub fn defaultKind() BackendKind {
 pub fn create(kind: BackendKind) types.Result!device.AudioBackend {
     return switch (kind) {
         .null_backend => null_backend.create(),
-        .linux_pipewire => if (builtin.os.tag == .linux)
-            error.BackendUnavailable
-        else
-            error.Unsupported,
-        .windows_wasapi => if (builtin.os.tag == .windows)
-            error.BackendUnavailable
-        else
-            error.Unsupported,
-        .macos_coreaudio => if (builtin.os.tag == .macos)
-            error.BackendUnavailable
-        else
-            error.Unsupported,
-        .auto => create(defaultKind()),
+        .linux_pipewire => if (builtin.os.tag == .linux) error.BackendUnavailable else error.Unsupported,
+        .windows_wasapi => if (builtin.os.tag == .windows) error.BackendUnavailable else error.Unsupported,
+        .macos_coreaudio => if (builtin.os.tag == .macos) error.BackendUnavailable else error.Unsupported,
+        .auto => createPlatformOrNull(),
+    };
+}
+
+fn createPlatformOrNull() types.Result!device.AudioBackend {
+    return switch (builtin.os.tag) {
+        .linux => create(.linux_pipewire) catch create(.null_backend),
+        .windows => create(.windows_wasapi) catch create(.null_backend),
+        .macos => create(.macos_coreaudio) catch create(.null_backend),
+        else => create(.null_backend),
     };
 }
