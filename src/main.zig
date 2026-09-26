@@ -23,12 +23,9 @@ const generator_vtable = ot.audio.engine.Processor.VTable{
 };
 
 pub fn main() void {
-    std.debug.print("OpenTune 0.1.0
-", .{});
-    std.debug.print("Architecture: core -> dsp -> graph -> engine -> platform
-", .{});
-    std.debug.print("Default backend: {s}
-", .{@tagName(ot.platform.backend.defaultKind())});
+    std.debug.print("OpenTune 0.1.0\n", .{});
+    std.debug.print("Architecture: core -> dsp -> graph -> engine -> platform\n", .{});
+    std.debug.print("Default backend: {s}\n", .{@tagName(ot.platform.backend.defaultKind())});
 
     var generator = Generator{};
     var processor = ot.audio.engine.Processor{
@@ -43,8 +40,7 @@ pub fn main() void {
     var buffer = ot.core.audio_buffer.AudioBuffer.init(&samples, 2, 48_000);
     engine.process(&buffer);
 
-    std.debug.print("First sample: {d:.6}
-", .{buffer.channel(0)[0]});
+    std.debug.print("First sample: {d:.6}\n", .{buffer.channel(0)[0]});
 }
 
 test "OpenTune public API" {
