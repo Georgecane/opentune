@@ -1,0 +1,45 @@
+name: OpenTune CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: opentune-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Zig 0.16.0 tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Install Zig 0.16.0
+        run: |
+          curl -fsSL https://ziglang.org/download/0.16.0/zig-x86_64-linux-0.16.0.tar.xz -o zig.tar.xz
+          tar -xf zig.tar.xz
+          echo "${PWD}/zig-x86_64-linux-0.16.0" >> "${GITHUB_PATH}"
+
+      - name: Verify Zig version
+        run: zig version
+
+      - name: Check formatting
+        run: zig fmt --check src build.zig
+
+      - name: Run tests
+        run: zig build test -Doptimize=Debug
+
+      - name: Build Debug
+        run: zig build -Doptimize=Debug
+
+      - name: Build ReleaseSafe
+        run: zig build -Doptimize=ReleaseSafe
