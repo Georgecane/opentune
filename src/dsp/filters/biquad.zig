@@ -1,5 +1,6 @@
 const std = @import("std");
 const types = @import("../../core/types.zig");
+const buffer = @import("../../core/audio_buffer.zig");
 
 pub const Coefficients = struct {
     b0: f32 = 1,
@@ -9,31 +10,20 @@ pub const Coefficients = struct {
     a2: f32 = 0,
 };
 
-pub const State = struct {
-    z1: f32 = 0,
-    z2: f32 = 0,
-};
+pub const State = struct { z1: f32 = 0, z2: f32 = 0 };
 
 pub const Biquad = struct {
     coefficients: Coefficients = .{},
     states: []State = &.{},
 
-    pub fn init(states: []State) Biquad {
-        return .{ .states = states };
-    }
+    pub fn init(states: []State) Biquad { return .{ .states = states }; }
+    pub fn setCoefficients(self: *Biquad, coefficients: Coefficients) void { self.coefficients = coefficients; }
+    pub fn reset(self: *Biquad) void { for (self.states) |*state| state.* = .{}; }
 
-    pub fn setCoefficients(self: *Biquad, coefficients: Coefficients) void {
-        self.coefficients = coefficients;
-    }
-
-    pub fn reset(self: *Biquad) void {
-        for (self.states) |*state| state.* = .{};
-    }
-
-    pub fn process(self: *Biquad, buffer: *types.AudioBuffer) void {
-        for (0..buffer.channels) |channel| {
+    pub fn process(self: *Biquad, audio: *buffer.AudioBuffer) void {
+        for (0..audio.channels) |channel| {
             var state = &self.states[channel];
-            const samples = buffer.channel(@intCast(channel));
+            const samples = audio.channel(@intCast(channel));
             for (samples) |*sample| {
                 const input = sample.*;
                 const output = self.coefficients.b0 * input + state.z1;
@@ -51,21 +41,15 @@ pub fn lowpass(sample_rate: f32, frequency: f32, q: f32) Coefficients {
     const cos_w0 = @cos(w0);
     const b0 = (1.0 - cos_w0) / 2.0;
     const b1 = 1.0 - cos_w0;
-    const b2 = b0;
     const a0 = 1.0 + alpha;
     const a1 = -2.0 * cos_w0;
     const a2 = 1.0 - alpha;
-    return .{
-        .b0 = b0 / a0,
-        .b1 = b1 / a0,
-        .b2 = b2 / a0,
-        .a1 = a1 / a0,
-        .a2 = a2 / a0,
-    };
+    return .{ .b0 = b0 / a0, .b1 = b1 / a0, .b2 = b0 / a0, .a1 = a1 / a0, .a2 = a2 / a0 };
 }
 
 test "lowpass coefficients are finite" {
     const c = lowpass(48_000, 1_000, 0.707);
     try std.testing.expect(std.math.isFinite(c.b0));
     try std.testing.expect(std.math.isFinite(c.a2));
+    _ = types.Sample;
 }
