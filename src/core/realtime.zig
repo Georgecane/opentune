@@ -1,3 +1,4 @@
+const std = @import("std");
 const types = @import("types.zig");
 
 pub const RealtimePolicy = struct {
@@ -20,14 +21,23 @@ pub const RealtimeContext = struct {
 
 pub fn assertCompatible(policy: RealtimePolicy, context: *const types.ProcessContext) void {
     std.debug.assert(context.block_size <= policy.max_block_size);
-    _ = policy;
+    std.debug.assert(context.block_size > 0);
 }
-
-const std = @import("std");
 
 test "strict realtime policy forbids unsafe operations by contract" {
     const policy = RealtimePolicy.strict();
     try std.testing.expect(!policy.allow_allocation);
     try std.testing.expect(!policy.allow_blocking);
     try std.testing.expect(!policy.allow_io);
+    try std.testing.expect(!policy.allow_logging);
+}
+
+test "realtime context accepts a bounded block" {
+    const policy = RealtimePolicy{ .max_block_size = 256, .max_channels = 8 };
+    const context = types.ProcessContext{
+        .sample_rate = 48_000,
+        .block_size = 128,
+        .transport_sample = 0,
+    };
+    assertCompatible(policy, &context);
 }
