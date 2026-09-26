@@ -6,23 +6,11 @@ pub const AudioBuffer = struct {
     channels: types.ChannelCount,
     frames: types.FrameCount,
     sample_rate: types.SampleRate,
+    layout: types.AudioLayout = .planar,
 
-    pub fn init(
-        samples: []types.Sample,
-        channels: types.ChannelCount,
-        sample_rate: types.SampleRate,
-    ) AudioBuffer {
-        const frames: types.FrameCount = if (channels == 0)
-            0
-        else
-            @intCast(samples.len / @as(usize, channels));
-
-        return .{
-            .samples = samples,
-            .channels = channels,
-            .frames = frames,
-            .sample_rate = sample_rate,
-        };
+    pub fn init(samples: []types.Sample, channels: types.ChannelCount, sample_rate: types.SampleRate) AudioBuffer {
+        const frames: types.FrameCount = if (channels == 0) 0 else @intCast(samples.len / @as(usize, channels));
+        return .{ .samples = samples, .channels = channels, .frames = frames, .sample_rate = sample_rate };
     }
 
     pub fn clear(self: *AudioBuffer) void {
@@ -31,27 +19,21 @@ pub const AudioBuffer = struct {
 
     pub fn channel(self: *AudioBuffer, index: types.ChannelCount) []types.Sample {
         std.debug.assert(index < self.channels);
+        std.debug.assert(self.layout == .planar);
         const start = @as(usize, index) * self.frames;
         return self.samples[start .. start + self.frames];
     }
 
     pub fn isCompatible(self: *const AudioBuffer, format: types.AudioFormat) bool {
-        return self.sample_rate == format.sample_rate and self.channels == format.channels;
+        return self.sample_rate == format.sample_rate and
+            self.channels == format.channels and
+            self.layout == format.layout;
     }
 };
 
-test "audio buffer exposes channels" {
+test "audio buffer exposes planar channels" {
     var samples = [_]types.Sample{ 1, 2, 3, 4, 5, 6 };
     var buffer = AudioBuffer.init(&samples, 2, 48_000);
-
-    try std.testing.expectEqualSlices(
-        types.Sample,
-        &[_]types.Sample{ 1, 2, 3 },
-        buffer.channel(0),
-    );
-    try std.testing.expectEqualSlices(
-        types.Sample,
-        &[_]types.Sample{ 4, 5, 6 },
-        buffer.channel(1),
-    );
+    try std.testing.expectEqualSlices(types.Sample, &[_]types.Sample{ 1, 2, 3 }, buffer.channel(0));
+    try std.testing.expectEqualSlices(types.Sample, &[_]types.Sample{ 4, 5, 6 }, buffer.channel(1));
 }
