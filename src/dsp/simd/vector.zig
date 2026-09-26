@@ -27,10 +27,37 @@ pub fn multiplySlice(samples: []f32, gain: f32) void {
     }
 }
 
-test "vector gain kernel" {
-    var samples = [_]f32{ 1, 2, 3, 4, 5 };
+test "vector gain kernel matches scalar reference for every tail length" {
+    const lengths = [_]usize{ 0, 1, 2, 3, 4, 5, 7, 8, 15, 16, 31, 32, 127, 128, 129 };
+    const gain: f32 = -0.375;
+
+    for (lengths) |len| {
+        var simd = [_]f32{0} ** 129;
+        var scalar = [_]f32{0} ** 129;
+
+        for (0..len) |i| {
+            const value: f32 = @floatFromInt(@as(i32, @intCast(i)) - 64);
+            simd[i] = value * 0.125;
+            scalar[i] = simd[i] * gain;
+        }
+
+        multiplySlice(simd[0..len], gain);
+        try std.testing.expectEqualSlices(f32, scalar[0..len], simd[0..len]);
+
+        for (len..simd.len) |i| {
+            try std.testing.expectEqual(@as(f32, 0), simd[i]);
+        }
+    }
+}
+
+test "vector gain kernel preserves non finite values according to IEEE arithmetic" {
+    var samples = [_]f32{ std.math.inf(f32), -std.math.inf(f32), std.math.nan(f32), 1 };
     multiplySlice(&samples, 2);
-    try std.testing.expectEqualSlices(f32, &[_]f32{ 2, 4, 6, 8, 10 }, &samples);
+
+    try std.testing.expect(std.math.isPositiveInf(samples[0]));
+    try std.testing.expect(std.math.isNegativeInf(samples[1]));
+    try std.testing.expect(std.math.isNan(samples[2]));
+    try std.testing.expectEqual(@as(f32, 2), samples[3]);
 }
 
 test "vector operations" {
@@ -38,5 +65,4 @@ test "vector operations" {
     const b: @Vector(4, f32) = @splat(3);
     const c = add(4, a, b);
     try std.testing.expectEqual(@as(f32, 5), c[0]);
-    _ = std;
 }
