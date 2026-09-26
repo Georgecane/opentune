@@ -56,7 +56,8 @@ test "sine frequency remains accurate across multiple blocks" {
 
     for (0..4) |block| {
         const start = block * block_size;
-        osc.render(&audio.channel(0)[start .. start + block_size].*, 1);
+        var block_audio = buffer.AudioBuffer.init(audio.channel(0)[start .. start + block_size], 1, 48_000);
+        osc.render(&block_audio, 1);
     }
 
     for (audio.channel(0), 0..) |actual, n| {
