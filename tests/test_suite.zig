@@ -14,7 +14,9 @@ test "audio buffer clear removes all samples" {
     var samples = [_]f32{1, -2, 3, 4, -5, 6};
     var audio = ot.core.audio_buffer.AudioBuffer.init(&samples, 2, 48_000);
     audio.clear();
-    for (audio.samples) |sample| try std.testing.expectEqual(@as(f32, 0), sample);
+    for (audio.samples) |sample| {
+        try std.testing.expectEqual(@as(f32, 0), sample);
+    }
 }
 
 test "cpu budget reports expected block duration" {
@@ -76,11 +78,18 @@ test "graph executes nodes in declared order" {
         state: *NodeState,
 
         fn deinit(_: *anyopaque) void {}
+
         fn reset(ptr: *anyopaque, _: *const Context) void {
             const self: *Node = @ptrCast(@alignCast(ptr));
             self.state.value = 0;
         }
-        fn process(ptr: *anyopaque, input: ?*const Buffer, output: *Buffer, _: *const Context) void {
+
+        fn process(
+            ptr: *anyopaque,
+            input: ?*const Buffer,
+            output: *Buffer,
+            _: *const Context,
+        ) void {
             const self: *Node = @ptrCast(@alignCast(ptr));
             const value = if (input) |in| in.channel(0)[0] else 0;
             self.state.value = value + 1;
@@ -105,7 +114,11 @@ test "graph executes nodes in declared order" {
     var graph = ot.graph.graph.AudioGraph.init(&nodes);
     var samples = [_]f32{0};
     var output = Buffer.init(&samples, 1, 48_000);
-    const context = Context{ .sample_rate = 48_000, .block_size = 1, .transport_sample = 0 };
+    const context = Context{
+        .sample_rate = 48_000,
+        .block_size = 1,
+        .transport_sample = 0,
+    };
     graph.process(null, &output, &context);
 
     try std.testing.expectEqual(@as(f32, 1), a_state.value);
