@@ -1,7 +1,11 @@
 const types = @import("../core/types.zig");
 const buffer = @import("../core/audio_buffer.zig");
 
-pub const PluginKind = enum { native, clap, lv2 };
+pub const PluginKind = enum {
+    native,
+    clap,
+    lv2,
+};
 
 pub const PluginDescriptor = struct {
     id: []const u8,
@@ -21,9 +25,19 @@ pub const PluginInstance = struct {
         process: *const fn (*anyopaque, *buffer.AudioBuffer, *const types.ProcessContext) void,
     };
 
-    pub fn deinit(self: *PluginInstance) void { self.vtable.deinit(self.ptr); }
-    pub fn reset(self: *PluginInstance, context: *const types.ProcessContext) void { self.vtable.reset(self.ptr, context); }
-    pub fn process(self: *PluginInstance, audio: *buffer.AudioBuffer, context: *const types.ProcessContext) void {
+    pub fn deinit(self: *PluginInstance) void {
+        self.vtable.deinit(self.ptr);
+    }
+
+    pub fn reset(self: *PluginInstance, context: *const types.ProcessContext) void {
+        self.vtable.reset(self.ptr, context);
+    }
+
+    pub fn process(
+        self: *PluginInstance,
+        audio: *buffer.AudioBuffer,
+        context: *const types.ProcessContext,
+    ) void {
         self.vtable.process(self.ptr, audio, context);
     }
 };
