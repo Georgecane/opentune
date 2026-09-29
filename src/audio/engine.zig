@@ -12,7 +12,11 @@ pub const Processor = struct {
         reset: *const fn (*anyopaque, *const types.ProcessContext) void,
     };
 
-    pub fn process(self: *Processor, output: *buffer.AudioBuffer, context: *const types.ProcessContext) void {
+    pub fn process(
+        self: *Processor,
+        output: *buffer.AudioBuffer,
+        context: *const types.ProcessContext,
+    ) void {
         self.vtable.process(self.ptr, output, context);
     }
 
@@ -26,24 +30,43 @@ pub const AudioEngine = struct {
     processor: ?Processor = null,
 
     pub fn init(sample_rate: types.SampleRate, block_size: types.FrameCount) AudioEngine {
-        return .{ .context = .{ .sample_rate = sample_rate, .block_size = block_size, .transport_sample = 0 } };
+        return .{
+            .context = .{
+                .sample_rate = sample_rate,
+                .block_size = block_size,
+                .transport_sample = 0,
+            },
+        };
     }
 
-    pub fn setProcessor(self: *AudioEngine, processor: Processor) void { self.processor = processor; }
+    pub fn setProcessor(self: *AudioEngine, processor: Processor) void {
+        self.processor = processor;
+    }
 
     pub fn reset(self: *AudioEngine) void {
-        if (self.processor) |*processor| processor.reset(&self.context);
+        if (self.processor) |*processor| {
+            processor.reset(&self.context);
+        }
         self.context.transport_sample = 0;
     }
 
     pub fn process(self: *AudioEngine, output: *buffer.AudioBuffer) void {
         std.debug.assert(output.sample_rate == self.context.sample_rate);
         std.debug.assert(output.frames <= self.context.block_size);
-        if (self.processor) |*processor| processor.process(output, &self.context) else output.clear();
+        if (self.processor) |*processor| {
+            processor.process(output, &self.context);
+        } else {
+            output.clear();
+        }
         self.context.transport_sample += output.frames;
     }
 
-    pub fn deviceCallback(user_data: ?*anyopaque, _: ?*const device.AudioBuffer, output: *device.AudioBuffer, context: *const types.ProcessContext) void {
+    pub fn deviceCallback(
+        user_data: ?*anyopaque,
+        _: ?*const device.AudioBuffer,
+        output: *device.AudioBuffer,
+        context: *const types.ProcessContext,
+    ) void {
         const engine: *AudioEngine = @ptrCast(@alignCast(user_data.?));
         engine.context.sample_rate = context.sample_rate;
         engine.context.block_size = context.block_size;
