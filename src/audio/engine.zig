@@ -25,9 +25,17 @@ pub const Processor = struct {
     }
 };
 
+pub const ProcessFault = enum {
+    none,
+    invalid_sample_rate,
+    invalid_channel_count,
+    oversized_block,
+};
+
 pub const AudioEngine = struct {
     context: types.ProcessContext,
     processor: ?Processor = null,
+    last_fault: ProcessFault = .none,
 
     pub fn init(sample_rate: types.SampleRate, block_size: types.FrameCount) AudioEngine {
         return .{
@@ -48,11 +56,31 @@ pub const AudioEngine = struct {
             processor.reset(&self.context);
         }
         self.context.transport_sample = 0;
+        self.last_fault = .none;
     }
 
+    /// Processes one bounded block. Invalid output metadata is handled fail-closed:
+    /// clear the provided buffer, report a fault, and do not advance transport.
+    /// This does not catch arbitrary processor panics or memory-safety faults.
     pub fn process(self: *AudioEngine, output: *buffer.AudioBuffer) void {
-        std.debug.assert(output.sample_rate == self.context.sample_rate);
-        std.debug.assert(output.frames <= self.context.block_size);
+        self.last_fault = .none;
+
+        if (output.sample_rate != self.context.sample_rate) {
+            output.clear();
+            self.last_fault = .invalid_sample_rate;
+            return;
+        }
+        if (output.channels == 0) {
+            output.clear();
+            self.last_fault = .invalid_channel_count;
+            return;
+        }
+        if (output.frames > self.context.block_size) {
+            output.clear();
+            self.last_fault = .oversized_block;
+            return;
+        }
+
         if (self.processor) |*processor| {
             processor.process(output, &self.context);
         } else {
@@ -74,10 +102,31 @@ pub const AudioEngine = struct {
     }
 };
 
-test "engine advances transport" {
+test "engine advances transport for a valid block" {
     var samples = [_]f32{0} ** 8;
     var out = buffer.AudioBuffer.init(&samples, 2, 48_000);
     var engine = AudioEngine.init(48_000, 4);
     engine.process(&out);
     try std.testing.expectEqual(@as(u64, 4), engine.context.transport_sample);
+    try std.testing.expectEqual(ProcessFault.none, engine.last_fault);
+}
+
+test "engine clears invalid sample-rate output and reports fault" {
+    var samples = [_]f32{1} ** 8;
+    var out = buffer.AudioBuffer.init(&samples, 2, 44_100);
+    var engine = AudioEngine.init(48_000, 4);
+    engine.process(&out);
+    try std.testing.expectEqual(ProcessFault.invalid_sample_rate, engine.last_fault);
+    try std.testing.expectEqual(@as(u64, 0), engine.context.transport_sample);
+    for (out.samples) |sample| try std.testing.expectEqual(@as(f32, 0), sample);
+}
+
+test "engine clears oversized blocks and reports fault" {
+    var samples = [_]f32{1} ** 12;
+    var out = buffer.AudioBuffer.init(&samples, 2, 48_000);
+    var engine = AudioEngine.init(48_000, 4);
+    engine.process(&out);
+    try std.testing.expectEqual(ProcessFault.oversized_block, engine.last_fault);
+    try std.testing.expectEqual(@as(u64, 0), engine.context.transport_sample);
+    for (out.samples) |sample| try std.testing.expectEqual(@as(f32, 0), sample);
 }
