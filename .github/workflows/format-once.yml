@@ -1,0 +1,50 @@
+name: One-time Zig formatter
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: opentune-format-once
+  cancel-in-progress: false
+
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v6
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Install Zig 0.17.1
+        run: |
+          curl -fsSLO https://ziglang.org/download/0.17.1/zig-x86_64-linux-0.17.1.tar.xz
+          tar -xf zig-x86_64-linux-0.17.1.tar.xz
+          echo "${PWD}/zig-x86_64-linux-0.17.1" >> "${GITHUB_PATH}"
+
+      - name: Verify Zig
+        run: test "$(zig version)" = "0.17.1"
+
+      - name: Run Zig formatter
+        run: zig fmt src tests build.zig build.zig.zon
+
+      - name: Commit formatter output
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ -n "$(git status --porcelain)" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add src tests build.zig build.zig.zon
+            git commit -m "style: format sources with Zig 0.17.1"
+            git push origin HEAD:main
+          fi
+          gh workflow run zig.yml --ref main
