@@ -12,7 +12,7 @@ test "core audio format compatibility" {
 }
 
 test "audio buffer clear removes all samples" {
-    var samples = [_]f32{1, -2, 3, 4, -5, 6};
+    var samples = [_]f32{ 1, -2, 3, 4, -5, 6 };
     var audio = ot.core.audio_buffer.AudioBuffer.init(&samples, 2, 48_000);
     audio.clear();
     for (audio.samples) |sample| {
