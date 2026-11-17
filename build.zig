@@ -67,7 +67,7 @@ pub fn build(b: *std.Build) void {
 
     const fmt_step = b.step("fmt", "Format OpenTune source and tests");
     const fmt = b.addFmt(.{
-        .paths = &.{ "src", "tests", "build.zig" },
+        .paths = b.pathList(&.{ "src", "tests", "build.zig", "build.zig.zon" }),
         .check = false,
     });
     fmt_step.dependOn(&fmt.step);

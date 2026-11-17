@@ -3,7 +3,7 @@ const buffer = @import("../core/audio_buffer.zig");
 const node = @import("node.zig");
 
 pub const AudioGraph = struct {
-    nodes: []node.AudioNode = &.{};
+    nodes: []node.AudioNode = &.{},
 
     pub fn init(nodes: []node.AudioNode) AudioGraph {
         return .{ .nodes = nodes };
