@@ -80,8 +80,10 @@ test "lowpass has unity DC gain" {
 
 test "lowpass impulse response matches the recurrence" {
     const c = lowpass(48_000, 1_000, 0.707);
-    var actual_samples = [_]f32{0} ** 64;
-    var expected_samples = [_]f32{0} ** 64;
+    var actual_samples: [64]f32 = undefined;
+    @memset(&actual_samples, 0);
+    var expected_samples: [64]f32 = undefined;
+    @memset(&expected_samples, 0);
 
     actual_samples[0] = 1;
     var audio = buffer.AudioBuffer.init(&actual_samples, 1, 48_000);
@@ -110,7 +112,9 @@ test "lowpass step response converges to its DC gain" {
     const c = lowpass(48_000, 1_000, 0.707);
     const expected_gain = (c.b0 + c.b1 + c.b2) / (1.0 + c.a1 + c.a2);
 
-    var samples = [_]f32{1} ** 4096;
+    var samples: [4096]f32 = undefined;
+
+    @memset(&samples, 1);
     var audio = buffer.AudioBuffer.init(&samples, 1, 48_000);
     var states = [_]State{.{}};
     var filter = Biquad.init(&states);
@@ -127,8 +131,11 @@ test "lowpass step response converges to its DC gain" {
 test "lowpass state is continuous across blocks" {
     const c = lowpass(48_000, 1_000, 0.707);
 
-    var whole = [_]f32{1} ** 256;
-    var split = [_]f32{1} ** 256;
+    var whole: [256]f32 = undefined;
+
+    @memset(&whole, 1);
+    var split: [256]f32 = undefined;
+    @memset(&split, 1);
 
     var whole_audio = buffer.AudioBuffer.init(&whole, 1, 48_000);
     var split_first_audio = buffer.AudioBuffer.init(split[0..128], 1, 48_000);
@@ -150,8 +157,10 @@ test "lowpass state is continuous across blocks" {
 
 test "biquad reset restores the initial response" {
     const c = lowpass(48_000, 1_000, 0.707);
-    var first = [_]f32{1} ** 128;
-    var second = [_]f32{1} ** 128;
+    var first: [128]f32 = undefined;
+    @memset(&first, 1);
+    var second: [128]f32 = undefined;
+    @memset(&second, 1);
 
     var a = buffer.AudioBuffer.init(&first, 1, 48_000);
     var b = buffer.AudioBuffer.init(&second, 1, 48_000);

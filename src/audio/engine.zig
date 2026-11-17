@@ -103,7 +103,8 @@ pub const AudioEngine = struct {
 };
 
 test "engine advances transport for a valid block" {
-    var samples = [_]f32{0} ** 8;
+    var samples: [8]f32 = undefined;
+    @memset(&samples, 0);
     var out = buffer.AudioBuffer.init(&samples, 2, 48_000);
     var engine = AudioEngine.init(48_000, 4);
     engine.process(&out);
@@ -112,7 +113,8 @@ test "engine advances transport for a valid block" {
 }
 
 test "engine clears invalid sample-rate output and reports fault" {
-    var samples = [_]f32{1} ** 8;
+    var samples: [8]f32 = undefined;
+    @memset(&samples, 1);
     var out = buffer.AudioBuffer.init(&samples, 2, 44_100);
     var engine = AudioEngine.init(48_000, 4);
     engine.process(&out);
@@ -122,7 +124,8 @@ test "engine clears invalid sample-rate output and reports fault" {
 }
 
 test "engine clears oversized blocks and reports fault" {
-    var samples = [_]f32{1} ** 12;
+    var samples: [12]f32 = undefined;
+    @memset(&samples, 1);
     var out = buffer.AudioBuffer.init(&samples, 2, 48_000);
     var engine = AudioEngine.init(48_000, 4);
     engine.process(&out);

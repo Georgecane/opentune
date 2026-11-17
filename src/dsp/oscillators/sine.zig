@@ -32,7 +32,9 @@ test "sine produces the mathematically expected waveform" {
     const frequency: f64 = 1_000;
     const amplitude: f32 = 0.5;
 
-    var samples = [_]f32{0} ** 480;
+    var samples: [480]f32 = undefined;
+
+    @memset(&samples, 0);
     var audio = buffer.AudioBuffer.init(&samples, 1, 48_000);
     var osc = Sine{ .frequency = frequency, .sample_rate = sample_rate };
     osc.render(&audio, amplitude);
@@ -50,7 +52,9 @@ test "sine frequency remains accurate across multiple blocks" {
     const frequency: f64 = 440;
     const block_size = 128;
 
-    var samples = [_]f32{0} ** (block_size * 4);
+    var samples: [(block_size * 4)]f32 = undefined;
+
+    @memset(&samples, 0);
     var audio = buffer.AudioBuffer.init(&samples, 1, 48_000);
     var osc = Sine{ .frequency = frequency, .sample_rate = sample_rate };
 
@@ -68,8 +72,10 @@ test "sine frequency remains accurate across multiple blocks" {
 }
 
 test "sine reset is bitwise deterministic for the same render" {
-    var first = [_]f32{0} ** 256;
-    var second = [_]f32{0} ** 256;
+    var first: [256]f32 = undefined;
+    @memset(&first, 0);
+    var second: [256]f32 = undefined;
+    @memset(&second, 0);
     var a = buffer.AudioBuffer.init(&first, 1, 48_000);
     var b = buffer.AudioBuffer.init(&second, 1, 48_000);
     var osc = Sine{ .frequency = 440 };
@@ -82,7 +88,8 @@ test "sine reset is bitwise deterministic for the same render" {
 }
 
 test "sine writes identical values to every channel" {
-    var samples = [_]f32{0} ** 96;
+    var samples: [96]f32 = undefined;
+    @memset(&samples, 0);
     var audio = buffer.AudioBuffer.init(&samples, 3, 48_000);
     var osc = Sine{ .frequency = 440 };
     osc.render(&audio, 0.75);

@@ -3,7 +3,8 @@ const ot = @import("../src/opentune.zig");
 
 test "core audio format compatibility" {
     const format = ot.core.types.AudioFormat.init(48_000, 2);
-    var samples = [_]f32{0} ** 16;
+    var samples: [16]f32 = undefined;
+    @memset(&samples, 0);
     const audio = ot.core.audio_buffer.AudioBuffer.init(&samples, 2, 48_000);
     try std.testing.expect(audio.isCompatible(format));
     try std.testing.expect(!audio.isCompatible(.{ .sample_rate = 44_100, .channels = 2 }));
@@ -27,7 +28,8 @@ test "cpu budget reports expected block duration" {
 }
 
 test "scratch pool never exceeds capacity" {
-    var storage = [_]f32{0} ** 4;
+    var storage: [4]f32 = undefined;
+    @memset(&storage, 0);
     var scratch = ot.dsp.runtime.scratch.Scratch.init(&storage);
     try std.testing.expect(scratch.take(3) != null);
     try std.testing.expect(scratch.take(2) == null);
@@ -44,7 +46,8 @@ test "simd multiply matches scalar expectation" {
 }
 
 test "sine oscillator starts at zero and writes every channel" {
-    var samples = [_]f32{0} ** 16;
+    var samples: [16]f32 = undefined;
+    @memset(&samples, 0);
     var audio = ot.core.audio_buffer.AudioBuffer.init(&samples, 2, 48_000);
     var osc = ot.dsp.oscillators.sine.Sine{ .frequency = 1_000 };
     osc.render(&audio, 0.5);
@@ -55,8 +58,10 @@ test "sine oscillator starts at zero and writes every channel" {
 }
 
 test "sine oscillator reset is deterministic" {
-    var first = [_]f32{0} ** 32;
-    var second = [_]f32{0} ** 32;
+    var first: [32]f32 = undefined;
+    @memset(&first, 0);
+    var second: [32]f32 = undefined;
+    @memset(&second, 0);
     var a = ot.core.audio_buffer.AudioBuffer.init(&first, 1, 48_000);
     var b = ot.core.audio_buffer.AudioBuffer.init(&second, 1, 48_000);
     var osc = ot.dsp.oscillators.sine.Sine{ .frequency = 440 };
@@ -149,7 +154,8 @@ test "project defaults are deterministic" {
 }
 
 test "audio engine advances exactly by processed frames" {
-    var samples = [_]f32{0} ** 12;
+    var samples: [12]f32 = undefined;
+    @memset(&samples, 0);
     var output = ot.core.audio_buffer.AudioBuffer.init(&samples, 2, 48_000);
     var engine = ot.audio.engine.AudioEngine.init(48_000, 128);
     engine.process(&output);

@@ -29,7 +29,8 @@ pub const Scratch = struct {
 };
 
 test "scratch allocator can be reset and reused" {
-    var memory = [_]types.Sample{0} ** 8;
+    var memory: [8]types.Sample = undefined;
+    @memset(&memory, 0);
     var scratch = Scratch.init(&memory);
 
     const first = scratch.take(3).?;

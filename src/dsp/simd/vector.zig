@@ -32,8 +32,10 @@ test "vector gain kernel matches scalar reference for every tail length" {
     const gain: f32 = -0.375;
 
     for (lengths) |len| {
-        var simd = [_]f32{0} ** 129;
-        var scalar = [_]f32{0} ** 129;
+        var simd: [129]f32 = undefined;
+        @memset(&simd, 0);
+        var scalar: [129]f32 = undefined;
+        @memset(&scalar, 0);
 
         for (0..len) |i| {
             const value: f32 = @floatFromInt(@as(i32, @intCast(i)) - 64);
