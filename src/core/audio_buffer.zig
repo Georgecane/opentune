@@ -13,13 +13,24 @@ pub const AudioBuffer = struct {
         return .{ .samples = samples, .channels = channels, .frames = frames, .sample_rate = sample_rate };
     }
 
+    /// Checks the storage invariants required by planar processing.
+    /// Layout support is checked separately because interleaved buffers need
+    /// a different channel-view API.
+    pub fn hasValidStorage(self: *const AudioBuffer) bool {
+        if (self.channels == 0 or self.sample_rate == 0 or self.frames == 0) return false;
+        const channel_count: usize = self.channels;
+        return self.samples.len % channel_count == 0 and
+            self.samples.len / channel_count == self.frames;
+    }
+
     pub fn clear(self: *AudioBuffer) void {
         @memset(self.samples, 0);
     }
 
+    /// Returns a contiguous channel slice. Call only for valid planar buffers.
     pub fn channel(self: *AudioBuffer, index: types.ChannelCount) []types.Sample {
-        std.debug.assert(index < self.channels);
         std.debug.assert(self.layout == .planar);
+        std.debug.assert(index < self.channels);
         const start = @as(usize, index) * self.frames;
         return self.samples[start .. start + self.frames];
     }
@@ -36,4 +47,10 @@ test "audio buffer exposes planar channels" {
     var buffer = AudioBuffer.init(&samples, 2, 48_000);
     try std.testing.expectEqualSlices(types.Sample, &[_]types.Sample{ 1, 2, 3 }, buffer.channel(0));
     try std.testing.expectEqualSlices(types.Sample, &[_]types.Sample{ 4, 5, 6 }, buffer.channel(1));
+}
+
+test "audio buffer detects malformed storage" {
+    var samples = [_]types.Sample{ 1, 2, 3, 4, 5 };
+    const buffer = AudioBuffer.init(&samples, 2, 48_000);
+    try std.testing.expect(!buffer.hasValidStorage());
 }

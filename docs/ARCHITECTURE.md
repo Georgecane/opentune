@@ -78,6 +78,22 @@ This document is a design contract, not a claim that every subsystem is already 
 - Use deterministic offline render tests, numerical DSP tests, fuzzing of parsers, sanitizer-enabled development builds, and long-running stress tests.
 - A process boundary is the strongest practical containment for native plugin crashes. An in-process engine cannot promise recovery from every memory-safety fault or operating-system/driver failure.
 
+### Current real-time core contract
+
+The initial engine implementation enforces these callback boundaries:
+
+- Engine configuration fixes the sample rate, maximum frames per block, and maximum channel count before processing starts.
+- Only non-empty, correctly sized planar buffers are accepted by the initial processing path. Storage length, channel count, sample rate, and frame count are validated. Interleaved buffers are rejected until a stride-aware view API exists.
+- Callback sample rate and reported frame count must match the output buffer and configured engine rate. The engine enforces a configured maximum block size and channel count.
+- Invalid callback metadata fails closed: output is cleared, the audio-thread-owned fault field is set, and transport does not advance.
+- A null engine user-data pointer clears output without dereferencing it.
+- Processor callbacks are contractually bounded, allocation-free, non-blocking, and free of I/O/logging. This is a contract, not a runtime sandbox.
+- Processors receive a local copy of the validated buffer descriptor; the sample storage remains shared for in-place audio processing. Engine transport accounting uses the original validated frame count.
+- Processor installation and reset are only safe while the device is stopped or at an explicitly synchronized boundary.
+- The diagnostic fault field is audio-thread-owned. Read it only after stopping/synchronizing the callback; cross-thread telemetry will use atomics or a bounded queue in a later stage.
+
+The current core does not yet provide a real hardware backend, atomic graph replacement, plugin fault isolation, or callback timing/xrun telemetry. These are separate acceptance gates.
+
 ## Asset size and streaming requirements
 
 - Use a content-addressed catalogue with checksums, licenses, sample rate, channels, loop points, loudness metadata, and codec information.
