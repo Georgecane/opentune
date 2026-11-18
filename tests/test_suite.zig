@@ -1,5 +1,5 @@
 const std = @import("std");
-const ot = @import("../src/opentune.zig");
+const ot = @import("opentune");
 
 test "core audio format compatibility" {
     const format = ot.core.types.AudioFormat.init(48_000, 2);
@@ -80,12 +80,13 @@ test "graph executes nodes in declared order" {
     };
 
     const Node = struct {
+        const Self = @This();
         state: *NodeState,
 
         fn deinit(_: *anyopaque) void {}
 
         fn reset(ptr: *anyopaque, _: *const Context) void {
-            const self: *Node = @ptrCast(@alignCast(ptr));
+            const self: *Self = @ptrCast(@alignCast(ptr));
             self.state.value = 0;
         }
 
@@ -95,8 +96,8 @@ test "graph executes nodes in declared order" {
             output: *Buffer,
             _: *const Context,
         ) void {
-            const self: *Node = @ptrCast(@alignCast(ptr));
-            const value = if (input) |in| in.channel(0)[0] else 0;
+            const self: *Self = @ptrCast(@alignCast(ptr));
+            const value = if (input) |in| in.samples[0] else 0;
             self.state.value = value + 1;
             output.clear();
             output.channel(0)[0] = self.state.value;

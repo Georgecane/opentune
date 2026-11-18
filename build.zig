@@ -31,7 +31,6 @@ pub fn build(b: *std.Build) void {
 
     const run_cmd = b.addRunArtifact(exe);
     run_cmd.step.dependOn(b.getInstallStep());
-    if (b.args) |args| run_cmd.addArgs(args);
 
     const run_step = b.step("run", "Run OpenTune");
     run_step.dependOn(&run_cmd.step);
@@ -43,6 +42,7 @@ pub fn build(b: *std.Build) void {
     const suite = b.addTest(.{
         .root_module = b.createModule(.{
             .root_source_file = b.path("tests/test_suite.zig"),
+            .imports = &.{.{ .name = "opentune", .module = api }},
             .target = target,
             .optimize = optimize,
         }),

@@ -28,7 +28,7 @@ pub fn main() void {
     std.debug.print("Default backend: {s}\n", .{@tagName(ot.platform.backend.defaultKind())});
 
     var generator = Generator{};
-    var processor = ot.audio.engine.Processor{
+    const processor = ot.audio.engine.Processor{
         .ptr = &generator,
         .vtable = &generator_vtable,
     };
