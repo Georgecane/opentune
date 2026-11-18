@@ -108,6 +108,19 @@ The core provides a generic `SpscQueue(T, capacity)` for one producer and one co
 
 The test suite verifies FIFO order, full/empty behavior, wraparound at the counter boundary, and concurrent producer/consumer transfer of 200,000 ordered values. The concurrent test passed ThreadSanitizer on the Linux x86_64 development host. The real-time test target also cross-compiled for Windows x86_64 and Linux ARM64; those cross-compiles do not claim runtime validation on those platforms.
 
+### Parameter communication
+
+The engine exposes a bounded parameter bus between one control producer and the audio callback:
+
+- ParameterEvent is a fixed-size value containing a stable parameter ID, finite f32 value, and block-relative frame offset. It carries no pointers, strings, slices, or heap-owned payloads.
+- The control producer submits through AudioEngine.sendParameter; invalid values/offsets and queue saturation are reported synchronously.
+- The audio callback consumes at most 64 events per block. Work is bounded even when the producer floods the queue.
+- Events whose frame offset is outside the actual next block are dropped and counted. They are not silently deferred into a later block.
+- A processor may provide an optional parameter handler. Events are delivered before that block's render call; the handler receives the block context and must remain bounded, allocation-free, and non-blocking.
+- Atomic counters expose accepted, invalid, full, dispatched, and dropped totals as diagnostic snapshots. They are not a transactional multi-counter snapshot.
+- The bus is SPSC: exactly one control producer and the audio thread as consumer. Multiple UI/MIDI producers must be serialized by a control-side aggregator or assigned separate queues in a future design.
+- Frame offsets are delivered to the processor but this initial interface does not itself split DSP rendering at sample boundaries. Sample-accurate parameter application requires processors to implement offset-aware ramps/scheduling; this is a later extension.
+
 ## Asset size and streaming requirements
 
 - Use a content-addressed catalogue with checksums, licenses, sample rate, channels, loop points, loudness metadata, and codec information.

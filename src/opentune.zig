@@ -3,6 +3,7 @@ pub const core = struct {
     pub const audio_buffer = @import("core/audio_buffer.zig");
     pub const realtime = @import("core/realtime.zig");
     pub const spsc_queue = @import("core/spsc_queue.zig");
+    pub const parameter = @import("core/parameter.zig");
 };
 
 pub const dsp = @import("dsp/dsp.zig");

@@ -3,4 +3,5 @@
 test {
     _ = @import("audio/engine.zig");
     _ = @import("core/spsc_queue.zig");
+    _ = @import("core/parameter.zig");
 }

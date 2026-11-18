@@ -2,10 +2,12 @@ const std = @import("std");
 const types = @import("../core/types.zig");
 const buffer = @import("../core/audio_buffer.zig");
 const device = @import("device.zig");
+const parameter = @import("../core/parameter.zig");
 
 pub const Processor = struct {
     ptr: *anyopaque,
     vtable: *const VTable,
+    on_parameter: ?*const fn (*anyopaque, parameter.ParameterEvent, *const types.ProcessContext) void = null,
 
     /// Must be bounded, allocation-free, non-blocking, and free of I/O/logging.
     /// Processor state is owned by the audio thread while the device is running.
@@ -56,6 +58,7 @@ pub const AudioEngine = struct {
     config: Config,
     context: types.ProcessContext,
     processor: ?Processor = null,
+    parameter_bus: parameter.ParameterBus = .{},
 
     /// Audio-thread-owned diagnostic. Read it only after the callback is stopped
     /// or through a future atomic telemetry interface.
@@ -81,6 +84,12 @@ pub const AudioEngine = struct {
         var engine = init(config.sample_rate, config.max_block_size);
         engine.config = config;
         return engine;
+    }
+
+    /// Submit from the single control producer. Events are relative to the next
+    /// audio block and are consumed only by the audio callback.
+    pub fn sendParameter(self: *AudioEngine, event: parameter.ParameterEvent) parameter.SendResult {
+        return self.parameter_bus.send(event, self.config.max_block_size);
     }
 
     /// Install or replace processors only while the device is stopped. Runtime
@@ -139,6 +148,27 @@ pub const AudioEngine = struct {
         const block_frames = output.frames;
         self.context.block_size = block_frames;
 
+        // Bound control work per callback. Events with offsets outside this
+        // actual block are discarded rather than silently applied late.
+        var event_count: usize = 0;
+        while (event_count < parameter.max_events_per_block) : (event_count += 1) {
+            const event = self.parameter_bus.receive() orelse break;
+            if (event.frame_offset >= block_frames) {
+                self.parameter_bus.markDropped();
+                continue;
+            }
+            if (self.processor) |*processor| {
+                if (processor.on_parameter) |handler| {
+                    handler(processor.ptr, event, &self.context);
+                    self.parameter_bus.markDispatched();
+                } else {
+                    self.parameter_bus.markDropped();
+                }
+            } else {
+                self.parameter_bus.markDropped();
+            }
+        }
+
         if (self.processor) |*processor| {
             // Give processors a local descriptor copy. They can write the
             // prevalidated sample storage but cannot mutate the backend's
@@ -181,6 +211,69 @@ pub const AudioEngine = struct {
         self.last_fault = fault;
     }
 };
+
+test "engine dispatches bounded parameter events before processor rendering" {
+    const Probe = struct {
+        received: [4]parameter.ParameterEvent = undefined,
+        count: usize = 0,
+        fn onParameter(ptr: *anyopaque, event: parameter.ParameterEvent, context: *const types.ProcessContext) void {
+            const self: *@This() = @ptrCast(@alignCast(ptr));
+            if (event.frame_offset >= context.block_size) return;
+            if (self.count < self.received.len) {
+                self.received[self.count] = event;
+                self.count += 1;
+            }
+        }
+        fn process(_: *anyopaque, output: *buffer.AudioBuffer, _: *const types.ProcessContext) void {
+            output.clear();
+        }
+        fn reset(_: *anyopaque, _: *const types.ProcessContext) void {}
+    };
+    var probe = Probe{};
+    const vtable = Processor.VTable{ .process = Probe.process, .reset = Probe.reset };
+    const processor = Processor{ .ptr = &probe, .vtable = &vtable, .on_parameter = Probe.onParameter };
+    var engine = AudioEngine.init(48_000, 8);
+    engine.setProcessor(processor);
+    try std.testing.expectEqual(parameter.SendResult.queued, engine.sendParameter(.{ .id = 10, .value = 0.5 }));
+    try std.testing.expectEqual(parameter.SendResult.queued, engine.sendParameter(.{ .id = 11, .value = 0.75, .frame_offset = 3 }));
+    var samples: [8]f32 = undefined;
+    var output = buffer.AudioBuffer.init(&samples, 2, 48_000);
+    engine.process(&output);
+    try std.testing.expectEqual(@as(usize, 2), probe.count);
+    try std.testing.expectEqual(@as(u32, 10), probe.received[0].id);
+    try std.testing.expectEqual(@as(u32, 11), probe.received[1].id);
+    try std.testing.expectEqual(@as(u64, 2), engine.parameter_bus.telemetry().dispatched);
+    try std.testing.expectEqual(@as(u64, 0), engine.parameter_bus.telemetry().dropped);
+}
+
+test "engine drops events outside actual block and caps per-block dispatch" {
+    const Probe = struct {
+        count: usize = 0,
+        fn onParameter(ptr: *anyopaque, _: parameter.ParameterEvent, _: *const types.ProcessContext) void {
+            const self: *@This() = @ptrCast(@alignCast(ptr));
+            self.count += 1;
+        }
+        fn process(_: *anyopaque, output: *buffer.AudioBuffer, _: *const types.ProcessContext) void {
+            output.clear();
+        }
+        fn reset(_: *anyopaque, _: *const types.ProcessContext) void {}
+    };
+    var probe = Probe{};
+    const vtable = Processor.VTable{ .process = Probe.process, .reset = Probe.reset };
+    const processor = Processor{ .ptr = &probe, .vtable = &vtable, .on_parameter = Probe.onParameter };
+    var engine = AudioEngine.init(48_000, 8);
+    engine.setProcessor(processor);
+    try std.testing.expectEqual(parameter.SendResult.queued, engine.sendParameter(.{ .id = 1, .value = 1, .frame_offset = 3 }));
+    for (0..parameter.max_events_per_block + 2) |i| {
+        try std.testing.expectEqual(parameter.SendResult.queued, engine.sendParameter(.{ .id = 2, .value = @floatFromInt(i) }));
+    }
+    var samples: [4]f32 = undefined;
+    var output = buffer.AudioBuffer.init(&samples, 2, 48_000);
+    engine.process(&output);
+    try std.testing.expectEqual(@as(usize, parameter.max_events_per_block - 1), probe.count);
+    try std.testing.expectEqual(@as(u64, 1), engine.parameter_bus.telemetry().dropped);
+    try std.testing.expect(engine.parameter_bus.receive() != null);
+}
 
 test "engine advances transport by actual valid block frames" {
     var samples: [8]f32 = undefined;
