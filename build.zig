@@ -48,22 +48,23 @@ pub fn build(b: *std.Build) void {
         }),
     });
     const run_suite = b.addRunArtifact(suite);
-    const engine_module_tests = b.addTest(.{
+    const realtime_module_tests = b.addTest(.{
         .root_module = b.createModule(.{
-            .root_source_file = b.path("src/engine_test_root.zig"),
+            .root_source_file = b.path("src/realtime_test_root.zig"),
             .target = target,
             .optimize = optimize,
         }),
     });
-    const run_engine_module_tests = b.addRunArtifact(engine_module_tests);
+    const run_realtime_module_tests = b.addRunArtifact(realtime_module_tests);
 
     const test_step = b.step("test", "Run OpenTune unit and integration tests");
     test_step.dependOn(&run_tests.step);
     test_step.dependOn(&run_suite.step);
-    test_step.dependOn(&run_engine_module_tests.step);
+    test_step.dependOn(&run_realtime_module_tests.step);
 
     const test_core = b.step("test-core", "Run core tests");
     test_core.dependOn(&run_suite.step);
+    test_core.dependOn(&run_realtime_module_tests.step);
 
     const test_dsp = b.step("test-dsp", "Run DSP tests");
     test_dsp.dependOn(&run_suite.step);
@@ -73,6 +74,7 @@ pub fn build(b: *std.Build) void {
 
     const test_audio = b.step("test-audio", "Run audio engine tests");
     test_audio.dependOn(&run_suite.step);
+    test_audio.dependOn(&run_realtime_module_tests.step);
 
     const fmt_step = b.step("fmt", "Format OpenTune source and tests");
     const fmt = b.addFmt(.{

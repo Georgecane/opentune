@@ -164,3 +164,10 @@ test "audio engine advances exactly by processed frames" {
     engine.reset();
     try std.testing.expectEqual(@as(u64, 0), engine.context.transport_sample);
 }
+
+test "public core API exposes the SPSC queue" {
+    const Queue = ot.core.spsc_queue.SpscQueue(u32, 4);
+    var queue = Queue.init();
+    try std.testing.expect(queue.tryPush(42));
+    try std.testing.expectEqual(@as(?u32, 42), queue.tryPop());
+}

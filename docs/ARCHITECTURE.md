@@ -94,6 +94,20 @@ The initial engine implementation enforces these callback boundaries:
 
 The current core does not yet provide a real hardware backend, atomic graph replacement, plugin fault isolation, or callback timing/xrun telemetry. These are separate acceptance gates.
 
+### Bounded SPSC communication
+
+The core provides a generic `SpscQueue(T, capacity)` for one producer and one consumer:
+
+- Capacity is a compile-time power of two greater than one; storage is embedded in the queue.
+- `tryPush` and `tryPop` are bounded, non-blocking operations. A full queue returns `false`; an empty queue returns `null`. Neither operation waits or allocates.
+- Producer and consumer own separate native-word wrapping counters. Release publication makes a written slot visible; acquire observation protects both reading the payload and reusing a consumed slot.
+- Counters are separated by target cache-line alignment to reduce false sharing.
+- The queue is strictly SPSC. Multiple producers or consumers, copying the queue after use, resetting it while active, or destroying it while either side is running are invalid.
+- Payload ownership remains the caller's responsibility. Copying a pointer or slice into the queue does not extend the pointed-to data lifetime.
+- No concurrent length snapshot is exposed. Callers should use the operation results rather than treat an approximate occupancy value as synchronization.
+
+The test suite verifies FIFO order, full/empty behavior, wraparound at the counter boundary, and concurrent producer/consumer transfer of 200,000 ordered values. The concurrent test passed ThreadSanitizer on the Linux x86_64 development host. The real-time test target also cross-compiled for Windows x86_64 and Linux ARM64; those cross-compiles do not claim runtime validation on those platforms.
+
 ## Asset size and streaming requirements
 
 - Use a content-addressed catalogue with checksums, licenses, sample rate, channels, loop points, loudness metadata, and codec information.
