@@ -73,5 +73,3 @@ test "audio buffer detects malformed storage" {
     const buffer = AudioBuffer.init(&samples, 2, 48_000);
     try std.testing.expect(!buffer.hasValidStorage());
 }
-
-[executed on device: hackgod (7cb235f1-4070-4c23-ba24-3e4337dda8d5)]

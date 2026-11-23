@@ -117,5 +117,3 @@ test "parameter bus preserves event order" {
     try std.testing.expectEqual(@as(?ParameterEvent, .{ .id = 4, .value = 0.75 }), bus.receive());
     try std.testing.expect(bus.receive() == null);
 }
-
-[executed on device: hackgod (7cb235f1-4070-4c23-ba24-3e4337dda8d5)]

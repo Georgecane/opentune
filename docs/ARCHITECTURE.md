@@ -167,5 +167,3 @@ A stage is complete only when:
 - performance claims include workload, hardware, sample rate, block size, and measured results;
 - known limitations and recovery behavior are documented;
 - the final diff has been reviewed and committed to `main`.
-
-[executed on device: hackgod (7cb235f1-4070-4c23-ba24-3e4337dda8d5)]

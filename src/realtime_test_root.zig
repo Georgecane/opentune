@@ -6,5 +6,3 @@ test {
     _ = @import("core/parameter.zig");
     _ = @import("core/parameter_registry.zig");
 }
-
-[executed on device: hackgod (7cb235f1-4070-4c23-ba24-3e4337dda8d5)]

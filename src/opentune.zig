@@ -30,5 +30,3 @@ pub const midi = @import("midi/midi_api.zig");
 pub const project = @import("project/project_api.zig");
 pub const ui = @import("ui/ui.zig");
 pub const app = @import("app/app.zig");
-
-[executed on device: hackgod (7cb235f1-4070-4c23-ba24-3e4337dda8d5)]

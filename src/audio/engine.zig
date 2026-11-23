@@ -593,5 +593,3 @@ test "processor receives bounded block context and sample-accurate transport" {
     try std.testing.expectEqual(@as(u64, 0), probe.last_transport_sample);
     try std.testing.expectEqual(@as(u64, 0), engine.context.transport_sample);
 }
-
-[executed on device: hackgod (7cb235f1-4070-4c23-ba24-3e4337dda8d5)]

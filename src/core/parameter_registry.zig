@@ -218,5 +218,3 @@ test "step and zero duration ramps apply immediately" {
     try std.testing.expect(zero_start.setTarget(1, 0, .exponential));
     try std.testing.expectEqual(@as(f32, 1), zero_start.currentValue());
 }
-
-[executed on device: hackgod (7cb235f1-4070-4c23-ba24-3e4337dda8d5)]
