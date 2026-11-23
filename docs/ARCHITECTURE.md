@@ -116,10 +116,13 @@ The engine exposes a bounded parameter bus between one control producer and the 
 - The control producer submits through AudioEngine.sendParameter; invalid values/offsets and queue saturation are reported synchronously.
 - The audio callback consumes at most 64 events per block. Work is bounded even when the producer floods the queue.
 - Events whose frame offset is outside the actual next block are dropped and counted. They are not silently deferred into a later block.
-- A processor may provide an optional parameter handler. Events are delivered before that block's render call; the handler receives the block context and must remain bounded, allocation-free, and non-blocking.
+- A fixed-capacity ParameterRegistry stores stable nonzero IDs and finite min/max/default values. Duplicate IDs, invalid ranges, unknown IDs, and out-of-range values are rejected on the control side. Register definitions before starting the device; do not mutate the registry while the audio thread is active.
+- ParameterEvent is a fixed-size value containing ID, finite value, block-relative frame offset, ramp duration, and ramp mode. It carries no pointers, strings, slices, or heap-owned payloads.
+- The audio callback consumes at most 64 events per block, stable-sorts them by frame offset using bounded insertion sort, and divides rendering into spans ending exactly at event offsets. Events at the same offset are applied in FIFO submission order before the next span.
+- Sample-accurate processors provide both an event handler and a process_segment callback. The latter receives the full validated planar buffer plus a start-frame/count window; AudioBuffer.channelRange provides bounded channel slices for that window. Legacy processors without this interface cannot consume parameter events; those events are counted as dropped rather than applied at an imprecise time.
+- Ramp supports step, linear, and positive-domain exponential transitions. Coefficients are prepared when a target changes; advance performs bounded per-sample updates without allocation or transcendental math in the sample loop. Exponential ramps reject non-positive endpoints. Ramps reduce abrupt parameter discontinuities but do not guarantee click-free output for every processor or parameter.
 - Atomic counters expose accepted, invalid, full, dispatched, and dropped totals as diagnostic snapshots. They are not a transactional multi-counter snapshot.
 - The bus is SPSC: exactly one control producer and the audio thread as consumer. Multiple UI/MIDI producers must be serialized by a control-side aggregator or assigned separate queues in a future design.
-- Frame offsets are delivered to the processor but this initial interface does not itself split DSP rendering at sample boundaries. Sample-accurate parameter application requires processors to implement offset-aware ramps/scheduling; this is a later extension.
 
 ## Asset size and streaming requirements
 
@@ -164,3 +167,5 @@ A stage is complete only when:
 - performance claims include workload, hardware, sample rate, block size, and measured results;
 - known limitations and recovery behavior are documented;
 - the final diff has been reviewed and committed to `main`.
+
+[executed on device: hackgod (7cb235f1-4070-4c23-ba24-3e4337dda8d5)]

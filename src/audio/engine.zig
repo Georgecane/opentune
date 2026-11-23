@@ -3,6 +3,7 @@ const types = @import("../core/types.zig");
 const buffer = @import("../core/audio_buffer.zig");
 const device = @import("device.zig");
 const parameter = @import("../core/parameter.zig");
+const parameter_registry = @import("../core/parameter_registry.zig");
 
 pub const Processor = struct {
     ptr: *anyopaque,
@@ -14,6 +15,9 @@ pub const Processor = struct {
     pub const VTable = struct {
         process: *const fn (*anyopaque, *buffer.AudioBuffer, *const types.ProcessContext) void,
         reset: *const fn (*anyopaque, *const types.ProcessContext) void,
+        /// When parameter events are pending, this replaces process for the block.
+        /// It must render only [start_frame, start_frame + frame_count) in the shared buffer.
+        process_segment: ?*const fn (*anyopaque, *buffer.AudioBuffer, *const types.ProcessContext, types.FrameCount, types.FrameCount) void = null,
     };
 
     pub fn process(
@@ -59,6 +63,7 @@ pub const AudioEngine = struct {
     context: types.ProcessContext,
     processor: ?Processor = null,
     parameter_bus: parameter.ParameterBus = .{},
+    parameter_registry: parameter_registry.ParameterRegistry = .{},
 
     /// Audio-thread-owned diagnostic. Read it only after the callback is stopped
     /// or through a future atomic telemetry interface.
@@ -88,7 +93,18 @@ pub const AudioEngine = struct {
 
     /// Submit from the single control producer. Events are relative to the next
     /// audio block and are consumed only by the audio callback.
+    /// Register metadata before starting the device. Registry mutation is control-thread-only.
+    pub fn registerParameter(self: *AudioEngine, spec: parameter_registry.ParameterSpec) parameter_registry.RegisterResult {
+        return self.parameter_registry.register(spec);
+    }
+
     pub fn sendParameter(self: *AudioEngine, event: parameter.ParameterEvent) parameter.SendResult {
+        if (!event.isValid(self.config.max_block_size) or
+            !self.parameter_registry.validateValue(event.id, event.value))
+        {
+            _ = self.parameter_bus.rejected_invalid.fetchAdd(1, .monotonic);
+            return .invalid_event;
+        }
         return self.parameter_bus.send(event, self.config.max_block_size);
     }
 
@@ -148,34 +164,57 @@ pub const AudioEngine = struct {
         const block_frames = output.frames;
         self.context.block_size = block_frames;
 
-        // Bound control work per callback. Events with offsets outside this
-        // actual block are discarded rather than silently applied late.
+        // Drain a fixed number of events, discard invalid offsets, then stable-sort
+        // by frame offset. The insertion sort is bounded by max_events_per_block.
+        var events: [parameter.max_events_per_block]parameter.ParameterEvent = undefined;
         var event_count: usize = 0;
-        while (event_count < parameter.max_events_per_block) : (event_count += 1) {
+        var drained: usize = 0;
+        while (drained < parameter.max_events_per_block) : (drained += 1) {
             const event = self.parameter_bus.receive() orelse break;
             if (event.frame_offset >= block_frames) {
                 self.parameter_bus.markDropped();
                 continue;
             }
-            if (self.processor) |*processor| {
-                if (processor.on_parameter) |handler| {
-                    handler(processor.ptr, event, &self.context);
-                    self.parameter_bus.markDispatched();
-                } else {
-                    self.parameter_bus.markDropped();
-                }
-            } else {
-                self.parameter_bus.markDropped();
+            var insert_at = event_count;
+            while (insert_at > 0 and events[insert_at - 1].frame_offset > event.frame_offset) : (insert_at -= 1) {
+                events[insert_at] = events[insert_at - 1];
             }
+            events[insert_at] = event;
+            event_count += 1;
         }
 
         if (self.processor) |*processor| {
-            // Give processors a local descriptor copy. They can write the
-            // prevalidated sample storage but cannot mutate the backend's
-            // original buffer metadata or the engine's transport accounting.
-            var processor_output = output.*;
-            processor.process(&processor_output, &self.context);
+            if (event_count > 0 and
+                processor.vtable.process_segment != null and
+                processor.on_parameter != null)
+            {
+                const segment_fn = processor.vtable.process_segment.?;
+                const handler = processor.on_parameter.?;
+                var cursor: types.FrameCount = 0;
+                var event_index: usize = 0;
+                while (event_index < event_count) {
+                    const event_frame = events[event_index].frame_offset;
+                    if (event_frame > cursor) {
+                        var segment_output = output.*;
+                        segment_fn(processor.ptr, &segment_output, &self.context, cursor, event_frame - cursor);
+                    }
+                    while (event_index < event_count and events[event_index].frame_offset == event_frame) : (event_index += 1) {
+                        handler(processor.ptr, events[event_index], &self.context);
+                        self.parameter_bus.markDispatched();
+                    }
+                    cursor = event_frame;
+                }
+                if (cursor < block_frames) {
+                    var segment_output = output.*;
+                    segment_fn(processor.ptr, &segment_output, &self.context, cursor, block_frames - cursor);
+                }
+            } else {
+                for (events[0..event_count]) |_| self.parameter_bus.markDropped();
+                var processor_output = output.*;
+                processor.process(&processor_output, &self.context);
+            }
         } else {
+            for (events[0..event_count]) |_| self.parameter_bus.markDropped();
             output.clear();
         }
 
@@ -227,13 +266,16 @@ test "engine dispatches bounded parameter events before processor rendering" {
         fn process(_: *anyopaque, output: *buffer.AudioBuffer, _: *const types.ProcessContext) void {
             output.clear();
         }
+        fn processSegment(_: *anyopaque, _: *buffer.AudioBuffer, _: *const types.ProcessContext, _: u32, _: u32) void {}
         fn reset(_: *anyopaque, _: *const types.ProcessContext) void {}
     };
     var probe = Probe{};
-    const vtable = Processor.VTable{ .process = Probe.process, .reset = Probe.reset };
+    const vtable = Processor.VTable{ .process = Probe.process, .reset = Probe.reset, .process_segment = Probe.processSegment };
     const processor = Processor{ .ptr = &probe, .vtable = &vtable, .on_parameter = Probe.onParameter };
     var engine = AudioEngine.init(48_000, 8);
     engine.setProcessor(processor);
+    try std.testing.expectEqual(parameter_registry.RegisterResult.registered, engine.registerParameter(.{ .id = 10, .min_value = 0, .max_value = 1, .default_value = 0 }));
+    try std.testing.expectEqual(parameter_registry.RegisterResult.registered, engine.registerParameter(.{ .id = 11, .min_value = 0, .max_value = 1, .default_value = 0 }));
     try std.testing.expectEqual(parameter.SendResult.queued, engine.sendParameter(.{ .id = 10, .value = 0.5 }));
     try std.testing.expectEqual(parameter.SendResult.queued, engine.sendParameter(.{ .id = 11, .value = 0.75, .frame_offset = 3 }));
     var samples: [8]f32 = undefined;
@@ -246,6 +288,95 @@ test "engine dispatches bounded parameter events before processor rendering" {
     try std.testing.expectEqual(@as(u64, 0), engine.parameter_bus.telemetry().dropped);
 }
 
+test "engine renders segments at sorted sample-accurate parameter boundaries" {
+    const Probe = struct {
+        segments: [4][2]u32 = undefined,
+        segment_count: usize = 0,
+        events: [2]parameter.ParameterEvent = undefined,
+        event_count: usize = 0,
+
+        fn onParameter(ptr: *anyopaque, event: parameter.ParameterEvent, _: *const types.ProcessContext) void {
+            const self: *@This() = @ptrCast(@alignCast(ptr));
+            self.events[self.event_count] = event;
+            self.event_count += 1;
+        }
+
+        fn process(_: *anyopaque, output: *buffer.AudioBuffer, _: *const types.ProcessContext) void {
+            output.clear();
+        }
+
+        fn processSegment(ptr: *anyopaque, output: *buffer.AudioBuffer, _: *const types.ProcessContext, start: u32, count: u32) void {
+            const self: *@This() = @ptrCast(@alignCast(ptr));
+            self.segments[self.segment_count] = .{ start, count };
+            self.segment_count += 1;
+            @memset(output.channelRange(0, start, count), @floatFromInt(start));
+        }
+
+        fn reset(_: *anyopaque, _: *const types.ProcessContext) void {}
+    };
+
+    var probe = Probe{};
+    const vtable = Processor.VTable{
+        .process = Probe.process,
+        .reset = Probe.reset,
+        .process_segment = Probe.processSegment,
+    };
+    var engine = AudioEngine.init(48_000, 8);
+    engine.setProcessor(.{ .ptr = &probe, .vtable = &vtable, .on_parameter = Probe.onParameter });
+    try std.testing.expectEqual(parameter_registry.RegisterResult.registered, engine.registerParameter(.{
+        .id = 21,
+        .min_value = 0,
+        .max_value = 1,
+        .default_value = 0,
+    }));
+    try std.testing.expectEqual(parameter_registry.RegisterResult.registered, engine.registerParameter(.{
+        .id = 22,
+        .min_value = 0,
+        .max_value = 1,
+        .default_value = 0,
+    }));
+
+    // Submit out of frame order: the engine must render in ascending offset order.
+    try std.testing.expectEqual(parameter.SendResult.queued, engine.sendParameter(.{
+        .id = 22,
+        .value = 0.8,
+        .frame_offset = 5,
+    }));
+    try std.testing.expectEqual(parameter.SendResult.queued, engine.sendParameter(.{
+        .id = 21,
+        .value = 0.2,
+        .frame_offset = 2,
+    }));
+
+    var samples: [16]f32 = undefined;
+    @memset(&samples, -1);
+    var output = buffer.AudioBuffer.init(&samples, 2, 48_000);
+    engine.process(&output);
+
+    try std.testing.expectEqual(@as(usize, 3), probe.segment_count);
+    try std.testing.expectEqual([2]u32{ 0, 2 }, probe.segments[0]);
+    try std.testing.expectEqual([2]u32{ 2, 3 }, probe.segments[1]);
+    try std.testing.expectEqual([2]u32{ 5, 3 }, probe.segments[2]);
+    try std.testing.expectEqual(@as(usize, 2), probe.event_count);
+    try std.testing.expectEqual(@as(u32, 21), probe.events[0].id);
+    try std.testing.expectEqual(@as(u32, 22), probe.events[1].id);
+    try std.testing.expectEqualSlices(f32, &[_]f32{ 0, 0, 2, 2, 2, 5, 5, 5 }, output.channel(0));
+    try std.testing.expectEqual(@as(u64, 2), engine.parameter_bus.telemetry().dispatched);
+}
+
+test "engine rejects unregistered and out-of-range parameter values" {
+    var engine = AudioEngine.init(48_000, 8);
+    try std.testing.expectEqual(parameter.SendResult.invalid_event, engine.sendParameter(.{ .id = 7, .value = 0.5 }));
+    try std.testing.expectEqual(parameter_registry.RegisterResult.registered, engine.registerParameter(.{
+        .id = 7,
+        .min_value = 0,
+        .max_value = 1,
+        .default_value = 0.5,
+    }));
+    try std.testing.expectEqual(parameter.SendResult.invalid_event, engine.sendParameter(.{ .id = 7, .value = 1.5 }));
+    try std.testing.expectEqual(@as(u64, 2), engine.parameter_bus.telemetry().rejected_invalid);
+}
+
 test "engine drops events outside actual block and caps per-block dispatch" {
     const Probe = struct {
         count: usize = 0,
@@ -256,13 +387,16 @@ test "engine drops events outside actual block and caps per-block dispatch" {
         fn process(_: *anyopaque, output: *buffer.AudioBuffer, _: *const types.ProcessContext) void {
             output.clear();
         }
+        fn processSegment(_: *anyopaque, _: *buffer.AudioBuffer, _: *const types.ProcessContext, _: u32, _: u32) void {}
         fn reset(_: *anyopaque, _: *const types.ProcessContext) void {}
     };
     var probe = Probe{};
-    const vtable = Processor.VTable{ .process = Probe.process, .reset = Probe.reset };
+    const vtable = Processor.VTable{ .process = Probe.process, .reset = Probe.reset, .process_segment = Probe.processSegment };
     const processor = Processor{ .ptr = &probe, .vtable = &vtable, .on_parameter = Probe.onParameter };
     var engine = AudioEngine.init(48_000, 8);
     engine.setProcessor(processor);
+    try std.testing.expectEqual(parameter_registry.RegisterResult.registered, engine.registerParameter(.{ .id = 1, .min_value = 0, .max_value = 1, .default_value = 0 }));
+    try std.testing.expectEqual(parameter_registry.RegisterResult.registered, engine.registerParameter(.{ .id = 2, .min_value = 0, .max_value = 100, .default_value = 0 }));
     try std.testing.expectEqual(parameter.SendResult.queued, engine.sendParameter(.{ .id = 1, .value = 1, .frame_offset = 3 }));
     for (0..parameter.max_events_per_block + 2) |i| {
         try std.testing.expectEqual(parameter.SendResult.queued, engine.sendParameter(.{ .id = 2, .value = @floatFromInt(i) }));
@@ -459,3 +593,5 @@ test "processor receives bounded block context and sample-accurate transport" {
     try std.testing.expectEqual(@as(u64, 0), probe.last_transport_sample);
     try std.testing.expectEqual(@as(u64, 0), engine.context.transport_sample);
 }
+
+[executed on device: hackgod (7cb235f1-4070-4c23-ba24-3e4337dda8d5)]

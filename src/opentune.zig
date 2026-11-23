@@ -4,6 +4,7 @@ pub const core = struct {
     pub const realtime = @import("core/realtime.zig");
     pub const spsc_queue = @import("core/spsc_queue.zig");
     pub const parameter = @import("core/parameter.zig");
+    pub const parameter_registry = @import("core/parameter_registry.zig");
 };
 
 pub const dsp = @import("dsp/dsp.zig");
@@ -29,3 +30,5 @@ pub const midi = @import("midi/midi_api.zig");
 pub const project = @import("project/project_api.zig");
 pub const ui = @import("ui/ui.zig");
 pub const app = @import("app/app.zig");
+
+[executed on device: hackgod (7cb235f1-4070-4c23-ba24-3e4337dda8d5)]

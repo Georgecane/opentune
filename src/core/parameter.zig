@@ -3,6 +3,7 @@ const queue_mod = @import("spsc_queue.zig");
 const types = @import("types.zig");
 
 pub const ParameterId = u32;
+pub const RampMode = enum { step, linear, exponential };
 pub const max_events_per_block: usize = 64;
 pub const queue_capacity: usize = 256;
 
@@ -12,6 +13,8 @@ pub const ParameterEvent = struct {
     id: ParameterId,
     value: f32,
     frame_offset: types.FrameCount = 0,
+    ramp_frames: types.FrameCount = 0,
+    ramp_mode: RampMode = .step,
 
     pub fn isValid(self: ParameterEvent, max_block_size: types.FrameCount) bool {
         return max_block_size > 0 and
@@ -114,3 +117,5 @@ test "parameter bus preserves event order" {
     try std.testing.expectEqual(@as(?ParameterEvent, .{ .id = 4, .value = 0.75 }), bus.receive());
     try std.testing.expect(bus.receive() == null);
 }
+
+[executed on device: hackgod (7cb235f1-4070-4c23-ba24-3e4337dda8d5)]

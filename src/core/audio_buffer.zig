@@ -35,6 +35,18 @@ pub const AudioBuffer = struct {
         return self.samples[start .. start + self.frames];
     }
 
+    /// Returns a channel window for a frame range in a planar buffer.
+    /// The range is contiguous within the selected channel and does not allocate.
+    pub fn channelRange(self: *AudioBuffer, index: types.ChannelCount, start_frame: types.FrameCount, frame_count: types.FrameCount) []types.Sample {
+        std.debug.assert(self.layout == .planar);
+        std.debug.assert(index < self.channels);
+        std.debug.assert(start_frame <= self.frames);
+        std.debug.assert(frame_count <= self.frames - start_frame);
+        const channel_start = @as(usize, index) * self.frames;
+        const start = channel_start + start_frame;
+        return self.samples[start .. start + frame_count];
+    }
+
     pub fn isCompatible(self: *const AudioBuffer, format: types.AudioFormat) bool {
         return self.sample_rate == format.sample_rate and
             self.channels == format.channels and
@@ -49,8 +61,17 @@ test "audio buffer exposes planar channels" {
     try std.testing.expectEqualSlices(types.Sample, &[_]types.Sample{ 4, 5, 6 }, buffer.channel(1));
 }
 
+test "audio buffer exposes bounded planar channel ranges" {
+    var samples = [_]types.Sample{ 0, 1, 2, 3, 4, 5, 6, 7, 10, 11, 12, 13, 14, 15, 16, 17 };
+    var audio = AudioBuffer.init(&samples, 2, 48_000);
+    try std.testing.expectEqualSlices(types.Sample, &[_]types.Sample{ 2, 3, 4 }, audio.channelRange(0, 2, 3));
+    try std.testing.expectEqualSlices(types.Sample, &[_]types.Sample{ 14, 15 }, audio.channelRange(1, 4, 2));
+}
+
 test "audio buffer detects malformed storage" {
     var samples = [_]types.Sample{ 1, 2, 3, 4, 5 };
     const buffer = AudioBuffer.init(&samples, 2, 48_000);
     try std.testing.expect(!buffer.hasValidStorage());
 }
+
+[executed on device: hackgod (7cb235f1-4070-4c23-ba24-3e4337dda8d5)]
